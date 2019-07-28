@@ -43,13 +43,11 @@ date, service_ids = ptg.read_busiest_date(feed_file)
 print("Service id chosen = {0}".format(service_ids))
 
 # filter for bus routes only
-
 bus_routes = gtfs.routes[gtfs.routes['route_type'] == 3]['route_id']
 trips      = gtfs.trips[gtfs.trips.route_id.isin(bus_routes)]
 
 #Select the service ids from that date. Note that trip_ids are still unique
 #because they include service_ids as a substring
-
 trips = trips[trips.service_id.isin(service_ids)]
 
 #Clean up stops data
