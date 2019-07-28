@@ -50,7 +50,7 @@ trips      = gtfs.trips[gtfs.trips.route_id.isin(bus_routes)]
 #Select the service ids from that date. Note that trip_ids are still unique
 #because they include service_ids as a substring
 
-trips = gtfs.trips[gtfs.trips.service_id.isin(service_ids)]
+trips = trips[trips.service_id.isin(service_ids)]
 
 #Clean up stops data
 gtfs.stops['lat'] = gtfs.stops.geometry.y
