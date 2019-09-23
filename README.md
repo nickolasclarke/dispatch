@@ -33,7 +33,13 @@ Build OSRM
 Processing Data
 ---------------
 
+Do this once per city:
+
     #Requires about 1GB RAM for Minneapolis
     osrm-extract -t 3 -p /usr/local/share/osrm/profiles/car.lua minneapolis-saint-paul_minnesota.osm.pbf 
     osrm-contract -t 3 minneapolis-saint-paul_minnesota.osrm
+
+Running the OSRM server
+-----------------------
+
     osrm-routed minneapolis-saint-paul_minnesota.osrm
