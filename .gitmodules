@@ -1,0 +1,3 @@
+[submodule "submodules/osrm-backend"]
+	path = submodules/osrm-backend
+	url = https://github.com/Project-OSRM/osrm-backend.git
