@@ -1,79 +1,118 @@
 #!/usr/bin/env python3
+import copy
 import math
-import numpy as np
-import pandas as pd
-import salabim as sim
 import sys
 
-#  based on SimPy example model
-class Bus(sim.Component):
+import numpy as np
+import pandas as pd
+import geopandas as gpd
+
+
+
+class BusModel:
     """
     TODO
     """
-    def __init__(self, start_time, end_time, trip_power, charging_rate, *args, **kwargs):
-        sim.Component.__init__(self, *args, **kwargs)
-        self.start_time    = start_time
-        self.end_time      = end_time
-        self.trip_power    = trip_power
-        self.charging_rate = charging_rate
-
-    def process(self):
-        """TODO
-        """
-        #Trip starts when this component is activated
-        yield self.request(bus_depot)
-        yield self.hold(till=self.end_time)
-        yield self.request((energy, self.trip_power))
-        yield self.hold(duration=self.trip_power/self.charging_rate*3600)
-        self.release(bus_depot)
-
-
-
-class Dispatcher:
-    def __init__(self, input_file, battery_cap_kwh=200, kwh_per_km=1.2, charging_rate=150):
-        self.gtfs            = pd.read_pickle(input_file, compression='infer')
-        self.gtfs            = self.gtfs.sort_values(['block_id', 'start_arrival_time'])
-        self.buses           = []
+    def __init__(self, gtfs, battery_cap_kwh=200, kwh_per_km=1.2, charging_rate=150):
+        #TODO: Is an explicit copy needed here?
+        self.gtfs            = copy.deepcopy(gtfs)
+        self.gtfs['trips']   = gtfs['trips'].sort_values(['block_id', 'start_arrival_time'])
         self.battery_cap_kwh = battery_cap_kwh
         self.kwh_per_km      = kwh_per_km
         self.charging_rate   = charging_rate
-        self.trip_seg_count  = 0
-        for block_id, group in self.gtfs.groupby(['block_id']):
-            self.schedule_block(block_id, group)
+        self.bus_swaps       = pd.DataFrame(columns=['datetime', 'stop_id', 'block_id'])
 
-    def schedule_block(self, block_id, trips):
-        trips = trips.copy()
-        distance_to_trip    = 5 #km. TODO: make this the maximum of the distance to the start and end
-        travel_time_to_trip = 0.2*3600 #seconds
-        maxdist             = self.battery_cap_kwh/self.kwh_per_km-2*distance_to_trip
-        trips['cumdist']  = trips.distance.cumsum()
-        trips['trip_seg'] = (trips.cumdist/1000/maxdist).astype(np.int)
-        # print(trips[['trip_headsign','start_arrival_time','distance','cumdist','trip_seg']])
-        for trip_seg, seg_group in trips.groupby('trip_seg'):
-            trip_power      = (seg_group.iloc[-1].cumdist-seg_group.iloc[0].cumdist+2*distance_to_trip)*self.kwh_per_km
-            trip_start_time = seg_group.iloc[0].start_arrival_time-travel_time_to_trip
-            trip_end_time   = seg_group.iloc[-1].end_arrival_time+travel_time_to_trip
-            new_bus         = Bus(trip_start_time,trip_end_time, trip_power, self.charging_rate, at=trip_start_time)
-            self.trip_seg_count += 1
+    def run(self):
+        """
+        Run the model
+        """
+        for block_id, group in self.gtfs['trips'].groupby(['block_id']):
+            self.run_block(block_id, group)
+
+    def GetStopChargingTime(self, trip_id):
+        #TODO: Could preprocess this
+        #Shortcuts to needed information
+        stops      = self.gtfs['stops']
+        stop_times = self.gtfs['stop_times']
+        #Get list of stops used by this trip and merge in the stop data
+        stop_times = stop_times[stop_times.trip_id==trip_id].merge(stops, how='left', on='stop_id')
+        #Extract only those stops with inductive charging
+        inductive_charging = stops[stops.inductive_charging]
+        #Total time stopped
+        stopped_time = np.sum(stop_times.stop_duration)
+        #Some of the stops with zero duration we do end up stopping at briefly
+        stop_prob  = 0.3 #Probability of stopping at a stop with zero duration
+        zstop_time = 10  #Time spent stopped at the stop
+        zero_count = sum(stop_times.stop_duration==0) #Number of zero-duration stops
+        #Number we actually stop at
+        #zero_count = np.random.binomial(zero_count, stop_prob, size=None) #Non-deterministic
+        zero_count = int(stop_prob*zero_count) #Deterministic
+        zero_time = zero_count*zstop_time
+        stopped_time += zero_time
+
+        return zero_time
+
+    def GetRouteChargingTime(self, shape_id):
+        #TODO: Could preprocess this
+        #Shortcuts to needed information
+        shape = self.gtfs['shapes'][self.gtfs['shapes'].shape_id==shape_id]
+        assert len(shape)==1
+        seg_hash = shape['seg_hash'][0]
+
+        #Extract segments in this route
+        segs = self.gtfs['shape_props'][self.gtfs['shape_props'].isin(seg_hash)]
+        charge_distance = sum(segs[segs.charging].distance)
+
+        return charge_distance/11.176 #25MPH in m/s. TODO: Fix
+
+    def SwapBus(self, time, stop_id, block_id):
+        """
+        Log the time, departure stop, and block id of the bus that needs swapping
+        """
+        self.bus_swaps.append({
+            'datetime': time,
+            'stop_id':  stop_id,
+            'block_id': block_id
+        }, ignore_index=True)  
+
+    def run_block(self, block_id, trips):
+        """
+        TODO 
+        """
+        #Set up the initial parameters of a bus
+        bus = {'energy': self.battery_cap_kwh}
+
+        #Run through all the trips in the block
+        for trip in trips.itertuples(): #TODO trips is the column names of the groups, not a group itself. How to properly iterate through a groupby?
+            trip_start_time = trip.start_arrival_time #TODO -travel_time_to_trip
+            trip_end_time   = trip.end_arrival_time   #TODO +travel_time_to_trip
+
+            #TODO: Incorporate charging at the beginning of trip if there is a charger present
+
+            # trip_start_coords = {'lat': trip.start_lat, 'lng': trip.start_lng}
+            # trip_end_coords   = {'lat': trip.end_lat,   'lng': trip.end_lng  }
+
+            trip_energy_req = trip.distance # + route_to_start.distance) * self.kwh_per_km
+
+            stop_charge  = self.GetStopChargingTime(trip.trip_id)
+            # route_charge = self.GetRouteChargingTime(trip.shape_id)
+
+            trip_energy_req -= stop_charge #- route_charge
+
+            if bus['energy'] <= trip_energy_req:
+                self.SwapBus(trip.start_arrival_time, trip.start_stop_id, trip.block_id)
+                bus['energy'] = self.battery_cap_kwh
+
+            bus['energy'] = bus['energy'] - trip_energy_req
 
 
 if len(sys.argv)!=2:
   print("Syntax: {0} <Parsed GTFS File>".format(sys.argv[0]))
   sys.exit(-1)
 
-input_file = sys.argv[1]
+gtfs_filename = sys.argv[1]
+gtfs_input    = pd.read_pickle(gtfs_filename, compression='infer')
+model         = BusModel(gtfs_input)
+model.run()
 
-env        = sim.Environment(trace=True) #time_unit='seconds'
-energy     = sim.Resource("energy", anonymous=True, capacity=999999)
-bus_depot  = sim.Resource("buses", capacity=999999)
-dispatcher = Dispatcher(input_file)
-
-env.run()
-
-bus_depot.claimed_quantity.print_histogram()
-energy.claimed_quantity.print_histogram()
-bus_depot.print_statistics()
-energy.print_statistics()
-bus_depot.print_info()
-energy.print_info()
-print('Trip seg count = {0}'.format(dispatcher.trip_seg_count))
+print('Trip seg count = {0}'.format(model.trip_seg_count))

@@ -1,0 +1,9 @@
+numpy
+pandas
+partridge[full]
+shapely
+geopandas==0.5.1
+pyproj==1.9.6 #Works with libproj-4.9.3
+mapclassify==2.1.1
+sklearn
+matplotlib

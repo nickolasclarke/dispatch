@@ -1,0 +1,6 @@
+data/
+*.pickle
+venv/
+.vscode/
+.SUB.txt
+.code-workspace.code-workspace
