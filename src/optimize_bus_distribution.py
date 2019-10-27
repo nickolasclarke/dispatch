@@ -13,8 +13,6 @@ if len(sys.argv)!=2:
   sys.exit(-1)
 
 model_out_filename = sys.argv[1]
-
-model_out_filename = 'zout'
 bus_swaps          = pd.read_pickle(model_out_filename, compression='infer')
 
 

@@ -106,13 +106,15 @@ class BusModel:
             bus['energy'] = bus['energy'] - trip_energy_req
 
 
-if len(sys.argv)!=2:
-  print("Syntax: {0} <Parsed GTFS File>".format(sys.argv[0]))
+if len(sys.argv)!=3:
+  print("Syntax: {0} <Parsed GTFS File> <Model Output>".format(sys.argv[0]))
   sys.exit(-1)
 
-gtfs_filename = sys.argv[1]
-gtfs_input    = pd.read_pickle(gtfs_filename, compression='infer')
-model         = BusModel(gtfs_input)
+gtfs_filename   = sys.argv[1]
+output_filename = sys.argv[2]
+gtfs_input      = pd.read_pickle(gtfs_filename, compression='infer')
+model           = BusModel(gtfs_input)
 model.run()
 
-print('Trip seg count = {0}'.format(model.trip_seg_count))
+with open(output_filename, 'wb') as handle:
+  pickle.dump(model.bus_swaps, handle, protocol=4)
