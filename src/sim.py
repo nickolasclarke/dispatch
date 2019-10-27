@@ -69,7 +69,7 @@ class BusModel:
         """
         Log the time, departure stop, and block id of the bus that needs swapping
         """
-        self.bus_swaps.append({
+        self.bus_swaps = self.bus_swaps.append({
             'datetime': time,
             'stop_id':  stop_id,
             'block_id': block_id
