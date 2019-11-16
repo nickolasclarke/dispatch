@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 import copy
 import math
+import pickle
 import sys
 
 import numpy as np
 import pandas as pd
 import geopandas as gpd
 
+from multiprocessing import Pool
 
 
 class BusModel:
@@ -26,8 +28,12 @@ class BusModel:
         """
         Run the model
         """
-        for block_id, group in self.gtfs['trips'].groupby(['block_id']):
-            self.run_block(block_id, group)
+        p = Pool()
+        p.starmap(self.run_block, self.gtfs['trips'].groupby(['block_id']))
+
+        # for block_id, group in self.gtfs['trips'].groupby(['block_id']):
+        #     self.run_block(block_id, group)
+        #     print(f'Block {block_id} complete')
 
     def GetStopChargingTime(self, trip_id):
         #TODO: Could preprocess this
@@ -104,6 +110,7 @@ class BusModel:
                 bus['energy'] = self.battery_cap_kwh
 
             bus['energy'] = bus['energy'] - trip_energy_req
+        print(f'Block {block_id} complete')
 
 
 if len(sys.argv)!=3:
