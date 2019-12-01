@@ -139,7 +139,7 @@ def GenerateTrips(gtfs, date, service_ids):
   trips = MatchColumn(trips,'trip_headsign')
 
   #Merge in distances
-  gtfs.shapes['distance'] = gtfs.shapes['geometry'].map(GetGeoDistanceFromLineString)
+  gtfs.shapes['distance'] = gtfs.shapes['geometry'].map(GetGeoDistanceFromLineString) #TODO what unit are these distances in? 
   trips = trips.merge(gtfs.shapes[['shape_id', 'distance']], how='left', on='shape_id')
   trips = trips.drop(columns='shape_id')
   trips['duration'] = trips['end_arrival_time']-trips['start_departure_time']

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import copy
 import math
+import pickle
 import sys
 
 import numpy as np
@@ -33,7 +34,7 @@ class BusModel:
 
     def GetStopChargingTime(self, trip_id):
         #TODO: Could preprocess this
-        #Shortcuts to needed information
+        #Shortcut to needed information
         stop_times = self.gtfs['stop_times']
         #Get list of stops used by this trip and merge in the stop data
         stop_times = stop_times[stop_times.trip_id==trip_id].merge(self.stops, how='left', on='stop_id')
@@ -85,18 +86,19 @@ class BusModel:
         # filter stops for only those in the block
         block_stops_ids = trips.start_stop_id.unique()
         block_stops     = self.stops[self.stops['stop_id'].isin(block_stops_ids)]
-        p = peekable(trips.itertuples()) #create a peekable iterator so we can look ahead at upcoming trips
-        trip_start_time = p.peek().start_arrival_time #TODO -travel_time_to_trip
-        trip_end_time   = p.peek().start_arrival_time #TODO +travel_time_to_trip
-
+        p = peekable(trips.itertuples())               #create a peekable iterator so we can look ahead at upcoming trips
+        trip_start_time = p.peek().start_arrival_time  #TODO -travel_time_to_trip
+        trip_end_time   = p.peek().end_arrival_time    #TODO +travel_time_to_trip
+        end_of_p = pd.Series({'start_arrival_time': 0})           # create a default value for
+        
         #Run through all the trips in the block
-        for trip in p: #TODO trips is the column names of the groups, not a group itself. How to properly iterate through a groupby?
+        for trip in p:                                #TODO trips is the column names of the groups, not a group itself. How to properly iterate through a groupby?
             trip_start_time = trip.start_arrival_time #TODO -travel_time_to_trip
             trip_end_time   = trip.end_arrival_time   #TODO +travel_time_to_trip
             #charging at the beginning of trip if there is a charger present
             if block_stops.loc[block_stops['stop_id'] == trip.start_stop_id]['evse'].bool():
-                next_trip   = p.peek() # find the next trip. TODO add a default value for the end of the block
-                charge_time =  trip_end_time  - next_trip.start_arrival_time# find the time available for charging between trips. What format is time in?
+                next_trip   = p.peek(end_of_p)                                                  # find the next trip, use end_of_p when p is fully consumed.
+                charge_time =  trip_end_time - next_trip.start_arrival_time                     # find the time available for charging between trips. What format is time in?
                 energy_between_trips = charge_time * (self.charging_rate / 60)
                 trip_energy_req      = (trip.distance * self.kwh_per_km) - energy_between_trips #TODO (trip.distance + route_to_start.distance ) * self.kwh_per_km - energy_between_trips
             else:
@@ -112,7 +114,15 @@ class BusModel:
                 bus['energy'] = self.battery_cap_kwh
 
             bus['energy'] = bus['energy'] - trip_energy_req
+            
+            print((
+                         f'Trip Distance: {trip.distance}\n'
+                f'Opportunistic Charging: {energy_between_trips}\n'
+                f'         Charging Time: {charge_time}\n'
+                f'            Energy Req: {trip_energy_req}\n\n'
+                ))
 
+        print(f'Block {block_id} complete')
 
 if len(sys.argv)!=3:
   print("Syntax: {0} <Parsed GTFS File> <Model Output>".format(sys.argv[0]))
