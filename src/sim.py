@@ -31,6 +31,7 @@ class BusModel:
         Run the model
         """
         p = Pool()
+        groups = self.gtfs['trips'].groupby(['block_id'])
         #Return list of lists where each list is a block's list of bus swaps 
         bus_swaps = p.starmap(self.run_block, groups)
         #Flatten list of lists
@@ -39,7 +40,7 @@ class BusModel:
 
     def GetStopChargingTime(self, trip_id):
         #TODO: Could preprocess this
-        #Shortcuts to needed information
+        #Shortcut to needed information
         stop_times = self.gtfs['stop_times']
         #Get list of stops used by this trip and merge in the stop data
         stop_times = stop_times[stop_times.trip_id==trip_id].merge(self.stops, how='left', on='stop_id')
@@ -93,35 +94,78 @@ class BusModel:
         # filter stops for only those in the block
         block_stops_ids = trips.start_stop_id.unique()
         block_stops     = self.stops[self.stops['stop_id'].isin(block_stops_ids)]
-        p = peekable(trips.itertuples()) #create a peekable iterator so we can look ahead at upcoming trips
-        trip_start_time = p.peek().start_arrival_time #TODO -travel_time_to_trip
-        trip_end_time   = p.peek().start_arrival_time #TODO +travel_time_to_trip
+        p = peekable(trips.itertuples())               #create a peekable iterator so we can look ahead at upcoming trips
+        trip_start_time = p.peek().start_arrival_time  #TODO -travel_time_to_trip
+        trip_end_time   = p.peek().end_arrival_time    #TODO +travel_time_to_trip
+        end_of_p = pd.Series({'start_departure_time': 0})           # create a default value for
+        
+        def MaxCharge(current_bus):
+            '''only permit bus to charge up to the battery capacity. 
+            '''
+            energy = current_bus['energy']
+            if energy > self.battery_cap_kwh:
+                return  self.battery_cap_kwh
+            else:
+                return energy
 
         #Run through all the trips in the block
-        for trip in p: #TODO trips is the column names of the groups, not a group itself. How to properly iterate through a groupby?
-            trip_start_time = trip.start_arrival_time #TODO -travel_time_to_trip
-            trip_end_time   = trip.end_arrival_time   #TODO +travel_time_to_trip
-            #charging at the beginning of trip if there is a charger present
+        for trip in p:                                #TODO trips is the column names of the groups, not a group itself. How to properly iterate through a groupby?
+            trip_start_time  = trip.start_arrival_time #TODO -travel_time_to_trip
+            trip_end_time    = trip.end_arrival_time   #TODO +travel_time_to_trip 
+            trip_distance_km = (trip.distance / 1000)   # convert to km
+
+            #charge at the beginning of trip if there is a charger present
             if block_stops.loc[block_stops['stop_id'] == trip.start_stop_id]['evse'].bool():
-                next_trip   = p.peek() # find the next trip. TODO add a default value for the end of the block
-                charge_time =  trip_end_time  - next_trip.start_arrival_time# find the time available for charging between trips. What format is time in?
-                energy_between_trips = charge_time * (self.charging_rate / 60)
-                trip_energy_req      = (trip.distance * self.kwh_per_km) - energy_between_trips #TODO (trip.distance + route_to_start.distance ) * self.kwh_per_km - energy_between_trips
-            else:
-                trip_energy_req = (trip.distance) * self.kwh_per_km #TODO (trip.distance + route_to_start.distance) * self.kwh_per_km
+                next_trip   = p.peek(end_of_p)                      # find the next trip, use end_of_p when p is fully consumed.
+                if next_trip.start_departure_time == 0:             #if at the end of the block, dont charge. #TODO can we work around this edge case?
+                    charge_time = 0
+                else: 
+                    charge_time = (next_trip.start_departure_time - trip_end_time) / 3600 # find the time available for charging between trips, in hours (likely a fraction of an hour)
 
-            stop_charge  = self.GetStopChargingTime(trip.trip_id)
-            # enroute_charge = self.GetRouteChargingTime(trip.shape_id)
+                energy_between_trips = charge_time * self.charging_rate
+                bus['energy']       += energy_between_trips
+                bus['energy']        = MaxCharge(bus)
+                trip_energy_req      = (trip_distance_km * self.kwh_per_km) #TODO (trip.distance + route_to_start.distance ) * self.kwh_per_km
 
-            trip_energy_req -= stop_charge #- enroute_charge
+            #charge at stops on the route (inductive charging)              #TODO put behind a flag.
+            stop_charge    = (self.GetStopChargingTime(trip.trip_id) / 3600) * self.kwh_per_km 
+            bus['energy'] += stop_charge
+            bus['energy']  = MaxCharge(bus)
+            
+            trip_energy_req = (trip_distance_km) * self.kwh_per_km #TODO (trip.distance + route_to_start.distance) * self.kwh_per_km
+
+           # overhead charging #TODO put behind flag.
+           # enroute_charge = self.GetRouteChargingTime(trip.shape_id)
+           # bus['energy'] += enroute_charge
+           # bus['energy']  = MaxCharge(bus['energy'])
+
 
             if bus['energy'] <= trip_energy_req:
                 bus_swaps.append(self.SwapBus(trip.start_arrival_time, trip.start_stop_id, trip.block_id))
                 bus['energy'] = self.battery_cap_kwh
 
             bus['energy'] = bus['energy'] - trip_energy_req
+            
+        #Block + Trip stats
+            try: energy_between_trips, charge_time
+            except: print((
+                           f'Opportunistic Charging: 0\n'
+                           f'         Charging Time: 0\n'
+                           ))
+            else:   print((
+                f'Opportunistic Charging: {energy_between_trips}\n'
+                f'         Charging Time: {charge_time}\n'
+                           ))
+
+            print((f'            Energy Req: {trip_energy_req}\n'
+                   f'           stop charge:   {stop_charge}\n'
+                   f'         Trip Distance: {trip_distance_km}\n\n'
+                ))
+
         print(f'Block {block_id} complete')
         return bus_swaps
+
+            
 
 
 if len(sys.argv)!=3:

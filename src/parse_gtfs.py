@@ -37,7 +37,7 @@ def dedupe_adjacent(iterable):
 wgs_to_aea = partial(
     pyproj.transform,
     pyproj.Proj(init='epsg:4326'), # source coordinate system
-    pyproj.Proj(init='esri:102003')) # destination coordinate system
+    pyproj.Proj(init='esri:102003')) # destination coordinate system. dist in meters - https://epsg.io/102003 
     #Converts to a US Contiguous Albert Equal Area projection. TODO: This fails on pyproj>2.0. 
 
 
@@ -87,24 +87,52 @@ def GenerateTrips(gtfs, date, service_ids):
   #Combine trips with stop data
   trips = trips.merge(gtfs.stop_times, left_on='trip_id', right_on='trip_id')
 
-  #Filter trips to only regularly scheduled stops
-  trips = trips[trips.pickup_type.astype(int)==0] #TODO: What does this mean?
-  trips = trips[trips.drop_off_type.astype(int)==0] #TODO: What does this mean?
+  #Filter trips to only regularly scheduled stops, if either column is present, (optional in GTFS)
+  #otherwise, assume all trips 
+  if ({'pickup_type'}.issubset(trips)):
+    #NaN or 0 == regularly scheduled stop
+    trips = trips[trips.pickup_type.fillna(0).astype(int)==0] #TODO: What does this mean?
+  else:
+    pass
+    #trips.pickup_type = 0
+ 
+  if ({'drop_off_type'}.issubset(trips)):
+    trips = trips[trips.drop_off_type.fillna(0).astype(int)==0] #TODO: What does this mean?
+  else:
+    pass
+    #trips.drop_off_type = 0
 
   trips = trips.sort_values(['trip_id','route_id','service_id','stop_sequence'])
 
   #TODO: Maybe concatenate trip_id with a service_id and route_id and direction_id to ensure it is unique?
-
+  print(trips.columns)
   #Drop unneeded columns
-  trips = trips.drop(columns=[ #refactor to be exclusive see issue #4
-    'wheelchair_accessible',
-    'pickup_type',
-    'drop_off_type',
-    'service_id',       #Trip ids include this as a substring
-    'direction_id',
-    'route_id',
-    'stop_sequence'     #This is held by the sorted order
-  ])
+
+  # trips = trips.drop(columns=[ #refactor to be exclusive see issue #4
+  #   'wheelchair_accessible',
+  #   'pickup_type',
+  #   'drop_off_type',
+  #   'service_id',       #Trip ids include this as a substring
+  #   'direction_id',
+  #   'route_id',
+  #   'stop_sequence'     #This is held by the sorted order
+  # ])
+
+  # this keeps 'nice to have' cols, otherwise pass over
+  # TODO divide between must have (route_id, service_id, etc) and 'nice to have' (timepoint, headsign, etc)
+  trips = trips.loc[:, trips.columns.isin(['route_id',
+                                        'service_id',
+                                        'trip_id',
+                                        'trip_headsign',
+                                        'block_id',
+                                        'shape_id',
+                                        'arrival_time',
+                                        'departure_time',
+                                        'stop_id',
+                                        'timepoint'
+                                        ]
+                                      )
+                      ]
 
   #TODO: block_id is supposed to indicate continuous travel by a *single vehicle*
   #and, thus, might provide a good way of simplifying the problem
@@ -139,7 +167,7 @@ def GenerateTrips(gtfs, date, service_ids):
   trips = MatchColumn(trips,'trip_headsign')
 
   #Merge in distances
-  gtfs.shapes['distance'] = gtfs.shapes['geometry'].map(GetGeoDistanceFromLineString)
+  gtfs.shapes['distance'] = gtfs.shapes['geometry'].map(GetGeoDistanceFromLineString) #TODO what unit are these distances in? 
   trips = trips.merge(gtfs.shapes[['shape_id', 'distance']], how='left', on='shape_id')
   trips = trips.drop(columns='shape_id')
   trips['duration'] = trips['end_arrival_time']-trips['start_departure_time']
@@ -227,7 +255,7 @@ date, service_ids = ptg.read_busiest_date(feed_file)
 print("Service id chosen = {0}".format(service_ids))
 
 #Load file twice so that we don't modify it within these functions
-trips                = GenerateTrips(ptg.load_geo_feed(feed_file), date, service_ids)
+trips                = GenerateTrips(ptg.load_geo_feed(feed_file), date, service_ids) #TODO can we deepcopy the df so we dont have to keep reloading it with ptg?
 stops                = GenerateStops(ptg.load_geo_feed(feed_file))
 stop_times           = GenerateStopTimes(ptg.load_geo_feed(feed_file))
 road_segs, seg_props = GenerateRoadSegments(ptg.load_geo_feed(feed_file))

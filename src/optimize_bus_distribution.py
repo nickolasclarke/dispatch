@@ -33,5 +33,6 @@ while len(q)>0:
         buses += 1
     maxbuses = min(buses,maxbuses)
 
+print(maxbuses)
 
-bus_info = pd.read_pickle('msp3.pickle', compression='infer')
+#bus_info = pd.read_pickle('msp3.pickle', compression='infer')
