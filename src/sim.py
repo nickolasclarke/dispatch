@@ -115,11 +115,19 @@ class BusModel:
 
             bus['energy'] = bus['energy'] - trip_energy_req
             
-            print((
-                         f'Trip Distance: {trip.distance}\n'
+        #Block + Trip stats
+            try: energy_between_trips, charge_time
+            except: print((
+                           f'Opportunistic Charging: 0\n'
+                           f'         Charging Time: 0\n'
+                           ))
+            else:   print((
                 f'Opportunistic Charging: {energy_between_trips}\n'
                 f'         Charging Time: {charge_time}\n'
-                f'            Energy Req: {trip_energy_req}\n\n'
+                           ))
+
+            print((f'            Energy Req: {trip_energy_req}\n'
+                            f'Trip Distance: {trip.distance}\n\n'
                 ))
 
         print(f'Block {block_id} complete')
