@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 import copy
 import math
+import pickle
 import sys
 
 import numpy as np
 import pandas as pd
 import geopandas as gpd
 
+from multiprocessing import Pool
 
 
 class BusModel:
@@ -26,8 +28,12 @@ class BusModel:
         """
         Run the model
         """
-        for block_id, group in self.gtfs['trips'].groupby(['block_id']):
-            self.run_block(block_id, group)
+        p = Pool()
+        #Return list of lists where each list is a block's list of bus swaps 
+        bus_swaps = p.starmap(self.run_block, groups)
+        #Flatten list of lists
+        bus_swaps = [y for x in bus_swaps for y in x]
+        self.bus_swaps = self.bus_swaps.append(bus_swaps, ignore_index=True)
 
     def GetStopChargingTime(self, trip_id):
         #TODO: Could preprocess this
@@ -67,13 +73,14 @@ class BusModel:
 
     def SwapBus(self, time, stop_id, block_id):
         """
-        Log the time, departure stop, and block id of the bus that needs swapping
+        Return an object logging the time, departure stop, and block id of the 
+        bus that needs swapping
         """
-        self.bus_swaps = self.bus_swaps.append({
+        return {
             'datetime': time,
             'stop_id':  stop_id,
             'block_id': block_id
-        }, ignore_index=True)  
+        }
 
     def run_block(self, block_id, trips):
         """
@@ -81,6 +88,7 @@ class BusModel:
         """
         #Set up the initial parameters of a bus
         bus = {'energy': self.battery_cap_kwh}
+        bus_swaps = []
 
         #Run through all the trips in the block
         for trip in trips.itertuples(): #TODO trips is the column names of the groups, not a group itself. How to properly iterate through a groupby?
@@ -100,10 +108,12 @@ class BusModel:
             trip_energy_req -= stop_charge #- route_charge
 
             if bus['energy'] <= trip_energy_req:
-                self.SwapBus(trip.start_arrival_time, trip.start_stop_id, trip.block_id)
+                bus_swaps.append(self.SwapBus(trip.start_arrival_time, trip.start_stop_id, trip.block_id))
                 bus['energy'] = self.battery_cap_kwh
 
             bus['energy'] = bus['energy'] - trip_energy_req
+        print(f'Block {block_id} complete')
+        return bus_swaps
 
 
 if len(sys.argv)!=3:
