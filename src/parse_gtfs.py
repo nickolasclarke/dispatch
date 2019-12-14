@@ -233,6 +233,8 @@ def GenerateRoadSegments(gtfs):
 
 
 def GenerateStopTimes(gtfs):
+  '''Stop times are in seconds, as given by partridge when loading the feed.
+  '''
   #TODO: Worry about pickup type and dropoff type?
   stop_times = gtfs.stop_times[['trip_id', 'stop_id']]
   stop_times['stop_duration'] = gtfs.stop_times['departure_time'] - gtfs.stop_times['arrival_time']

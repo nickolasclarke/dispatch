@@ -24,7 +24,7 @@ class BusModel:
         self.battery_cap_kwh = battery_cap_kwh
         self.kwh_per_km      = kwh_per_km
         self.charging_rate   = charging_rate
-        self.bus_swaps       = pd.DataFrame(columns=['datetime', 'stop_id', 'block_id'])
+        self.bus_swaps       = pd.DataFrame(columns=['datetime', 'stop_id', 'block_id', 'replacement'])
 
     def run(self):
         """
@@ -89,12 +89,19 @@ class BusModel:
         TODO 
         """
         #Set up the initial parameters of a bus
-        bus = {'energy': self.battery_cap_kwh}
-        bus_swaps = []
+        bus        = {'energy': self.battery_cap_kwh} 
+        bus_swaps  = []
+        p          = peekable(trips.itertuples()) #create a peekable iterator so we can look ahead at upcoming trips
+        first_trip = p.peek()
+        #call swap so the initial bus is counted
+        bus_swaps.append(self.SwapBus(first_trip.start_arrival_time,
+                                      first_trip.start_stop_id, 
+                                      first_trip.block_id,
+                                      False))
+
         # filter stops for only those in the block
         block_stops_ids = trips.start_stop_id.unique()
         block_stops     = self.stops[self.stops['stop_id'].isin(block_stops_ids)]
-        p = peekable(trips.itertuples())               #create a peekable iterator so we can look ahead at upcoming trips
         trip_start_time = p.peek().start_arrival_time  #TODO -travel_time_to_trip
         trip_end_time   = p.peek().end_arrival_time    #TODO +travel_time_to_trip
         end_of_p = pd.Series({'start_departure_time': 0})           # create a default value for
@@ -109,15 +116,15 @@ class BusModel:
                 return energy
 
         #Run through all the trips in the block
-        for trip in p:                                #TODO trips is the column names of the groups, not a group itself. How to properly iterate through a groupby?
+        for trip in p:                                 #TODO trips is the column names of the groups, not a group itself. How to properly iterate through a groupby?
             trip_start_time  = trip.start_arrival_time #TODO -travel_time_to_trip
             trip_end_time    = trip.end_arrival_time   #TODO +travel_time_to_trip 
             trip_distance_km = (trip.distance / 1000)   # convert to km
 
             #charge at the beginning of trip if there is a charger present
             if block_stops.loc[block_stops['stop_id'] == trip.start_stop_id]['evse'].bool():
-                next_trip   = p.peek(end_of_p)                      # find the next trip, use end_of_p when p is fully consumed.
-                if next_trip.start_departure_time == 0:             #if at the end of the block, dont charge. #TODO can we work around this edge case?
+                next_trip   = p.peek(end_of_p)          # find the next trip, use end_of_p when p is fully consumed.
+                if next_trip.start_departure_time == 0: #if at the end of the block, dont charge. #TODO can we work around this edge case?
                     charge_time = 0
                 else: 
                     charge_time = (next_trip.start_departure_time - trip_end_time) / 3600 # find the time available for charging between trips, in hours (likely a fraction of an hour)
@@ -141,7 +148,10 @@ class BusModel:
 
 
             if bus['energy'] <= trip_energy_req:
-                bus_swaps.append(self.SwapBus(trip.start_arrival_time, trip.start_stop_id, trip.block_id))
+                bus_swaps.append(self.SwapBus(trip.start_arrival_time, 
+                                              trip.start_stop_id, 
+                                              trip.block_id, 
+                                              True))
                 bus['energy'] = self.battery_cap_kwh
 
             bus['energy'] = bus['energy'] - trip_energy_req
@@ -158,14 +168,12 @@ class BusModel:
                            ))
 
             print((f'            Energy Req: {trip_energy_req}\n'
-                   f'           stop charge:   {stop_charge}\n'
+                   f'           stop charge: {stop_charge}\n'
                    f'         Trip Distance: {trip_distance_km}\n\n'
                 ))
 
         print(f'Block {block_id} complete')
         return bus_swaps
-
-            
 
 
 if len(sys.argv)!=3:
