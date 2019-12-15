@@ -73,7 +73,7 @@ class BusModel:
 
         return charge_distance/11.176 #25MPH in m/s. TODO: Fix
 
-    def SwapBus(self, time, stop_id, block_id):
+    def SwapBus(self, time, stop_id, block_id, is_replacement):
         """
         Return an object logging the time, departure stop, and block id of the 
         bus that needs swapping
