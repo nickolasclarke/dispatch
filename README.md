@@ -2,6 +2,16 @@
 
 A Salabim-based model for simulating deployment of EV bus fleets, using GTFS data
 
+Installation/Compilation
+===========================
+
+    mkdir build
+    cd build
+    cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=`pwd` ..
+    ninja
+    ninja install
+
+
 
 Example Usage
 ===========================

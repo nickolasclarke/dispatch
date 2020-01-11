@@ -4,3 +4,5 @@ venv/
 .vscode/
 .SUB.txt
 .code-workspace.code-workspace
+*.so
+build/
