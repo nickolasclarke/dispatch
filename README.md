@@ -50,6 +50,17 @@ parse the GTFS data into the following format:
 
 
 
+Data Flow, Data Structures
+===========================
+
+1. `parse_gtfs.py`
+---------------------------
+
+`parse_gtfs.py` reads a GTFS file and converts it into an internal data
+structure that can be read and understood by the project.
+
+
+
 Example Usage
 ===========================
 
