@@ -84,6 +84,7 @@ import pyproj
 import shapely as shp
 import shapely.ops
 
+from utility import *
 
 def pairwise(iterable):
   """
