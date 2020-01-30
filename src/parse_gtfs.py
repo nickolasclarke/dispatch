@@ -13,6 +13,7 @@ import pyproj
 import shapely as shp
 import shapely.ops
 
+from utility import *
 
 
 def pairwise(iterable):
@@ -96,7 +97,7 @@ def GenerateTrips(gtfs, date, service_ids):
   #TODO: Maybe concatenate trip_id with a service_id and route_id and direction_id to ensure it is unique?
 
   #Drop unneeded columns
-  trips = trips.drop(columns=[ #refactor to be exclusive see issue #4
+  trips = DropColumnsIfPresent(trips, [ #refactor to be exclusive see issue #4
     'wheelchair_accessible',
     'pickup_type',
     'drop_off_type',
