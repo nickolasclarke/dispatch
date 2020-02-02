@@ -243,15 +243,9 @@ def GenerateStops(gtfs):
   stops['lat'] = stops.geometry.y
   stops['lng'] = stops.geometry.x
 
-  #Drop unneeded columns
-  stops = stops.drop(columns=[
-    'wheelchair_boarding',
-    'stop_url',
-    'zone_id',
-    'stop_desc',
-    'location_type',
-    'stop_code'
-  ])
+  #Drop unneeded columns including 'wheelchair_boarding', 'stop_url', 'zone_id',
+  #'stop_desc', 'location_type', 'stop_code'
+  stops = stops[['stop_id', 'stop_name', 'geometry', 'lat', 'lng']]
 
   stops['inductive_charging'] = False # Whether there's an inductive charger
   stops['evse'] = False               # Whether there is a traditional EVSE charger
