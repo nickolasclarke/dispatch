@@ -174,7 +174,6 @@ def GenerateTrips(gtfs, date, service_ids):
 
   #TODO: Maybe concatenate trip_id with a service_id and route_id and direction_id to ensure it is unique?
 
-<<<<<<< HEAD
   #Drops 'route_id', 'timepoint', 'wheelchair_accessible', 'pickup_type',
   #'drop_off_type', 'service_id', 'direction_id', 'route_id', 'stop_sequence'
   trips = trips[[
@@ -187,18 +186,6 @@ def GenerateTrips(gtfs, date, service_ids):
                 'departure_time',
                 'stop_id',
                ]]
-=======
-  #Drop unneeded columns
-  trips = DropColumnsIfPresent(trips, [ #refactor to be exclusive see issue #4
-    'wheelchair_accessible',
-    'pickup_type',
-    'drop_off_type',
-    'service_id',       #Trip ids include this as a substring
-    'direction_id',
-    'route_id',
-    'stop_sequence'     #This is held by the sorted order
-  ])
->>>>>>> Handle issues with nonexistant columns in some datasets not being droppable
 
   #TODO: block_id is supposed to indicate continuous travel by a *single vehicle*
   #and, thus, might provide a good way of simplifying the problem
