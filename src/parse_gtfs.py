@@ -1,4 +1,75 @@
 #!/usr/bin/env python3
+
+"""Read a GTFS and transform it into standardized internal data structures.
+
+The output is stored in several tables.
+
+trips
+=========================
+
+All of the trips (from one end of a route to the other) that are made.
+
+Keys:
+* `trip_id`:              A unique identifier for the trip. Opaque.
+* `trip_headsign`:        Human-readable trip description. Only for debugging.
+* `block_id`:             Trips with the same block_id can, in theory, be 
+                          conveniently served by the same bus.
+* `start_arrival_time'`:  When the bus needs to arrive at the start of the trip.
+* `start_departure_time`: When the bus depats the start to being the trip.
+* `start_stop_id`:        `stop_id` of the start of the trip.
+* `start_lat`:            Latitude of the start of the trip.
+* `start_lng'`:           Longitude of the start of the trip.
+* `end_arrival_time`:     When the bus arrives at the end of the trip.
+* `end_departure_time`:   When the bus can move on from the end of the trip.
+* `end_stop_id`:          `stop_id` of the end of the trip.
+* `end_lat'`:             Latitude of the end of the trip.
+* `end_lng`:              Longitude of the end of the trip.
+* `distance`:             Length of the trip in meters.
+* `duration`:             Duration of the trip in seconds.
+* `wait_time`:            How long the bus is scheduled to spend waiting at 
+                          stops during the trip.
+
+stops
+=========================
+
+All of the stops.
+
+Keys:
+* `stop_id`:              Unique id for the stop.
+* `lat`:                  Latitude of the stop.
+* `lng`:                  Longitude of the stop.
+* `inductive_charging`:   Whether inductive charging is available at the stop
+* `nearest_charger`:      StopID if there is a nearby charger the bus can go to (mostly applicable to terminii)
+* `evse`:                 Whether there is a traditional EVSE charger
+* `stop_name`:            Human-readable name of the stop. For debugging.
+* `geometry`:             TODO
+
+stop_times
+=========================
+
+How long a bus is scheduled to spend at a stop during each trip.
+
+Keys:
+* `trip_id`:              Unique id of the trip.
+* `stop_id`:              Unique id of the stop.
+* `stop_duration`:        How long, in seconds, the bus is scheduled to spend at the stop.
+
+road_segs
+=========================
+
+TODO: Test table for putting in overhead wiring.
+
+seg_props
+=========================
+
+TODO: Test table for apply properties to segments
+
+Keys:
+* `seg_hash`:             Hash of the segment in question
+* `charging`:             Whether a bus can charge while traverse this segment.
+* `distance`:             Length of the segment. TODO: need traversal time.
+"""
+
 import collections
 from functools import partial
 import itertools
@@ -12,8 +83,6 @@ import partridge as ptg
 import pyproj
 import shapely as shp
 import shapely.ops
-
-from utility import *
 
 
 def pairwise(iterable):
@@ -35,12 +104,16 @@ def dedupe_adjacent(iterable):
 
 
 
-wgs_to_aea = partial(
-    pyproj.transform,
-    pyproj.Proj(init='epsg:4326'), # source coordinate system
-    pyproj.Proj(init='esri:102003')) # destination coordinate system
-    #Converts to a US Contiguous Albert Equal Area projection. TODO: This fails on pyproj>2.0. 
-
+def wgs_to_aea(x,y):
+  """Converts to a US Contiguous Albert Equal Area projection."""
+  # TODO: This fails on pyproj>2.0. 
+  return pyproj.transform(
+    pyproj.Proj(init='epsg:4326'),    # source coordinate system
+    pyproj.Proj(init='esri:102003'),  # destination coordinate system
+    x,
+    y
+  )
+    
 
 
 def ChangeProjection(geom):
@@ -96,16 +169,18 @@ def GenerateTrips(gtfs, date, service_ids):
 
   #TODO: Maybe concatenate trip_id with a service_id and route_id and direction_id to ensure it is unique?
 
-  #Drop unneeded columns
-  trips = DropColumnsIfPresent(trips, [ #refactor to be exclusive see issue #4
-    'wheelchair_accessible',
-    'pickup_type',
-    'drop_off_type',
-    'service_id',       #Trip ids include this as a substring
-    'direction_id',
-    'route_id',
-    'stop_sequence'     #This is held by the sorted order
-  ])
+  #Drops 'route_id', 'timepoint', 'wheelchair_accessible', 'pickup_type',
+  #'drop_off_type', 'service_id', 'direction_id', 'route_id', 'stop_sequence'
+  trips = trips[[
+                'service_id',
+                'trip_id',
+                'trip_headsign',
+                'block_id',
+                'shape_id',
+                'arrival_time',
+                'departure_time',
+                'stop_id',
+               ]]
 
   #TODO: block_id is supposed to indicate continuous travel by a *single vehicle*
   #and, thus, might provide a good way of simplifying the problem
@@ -167,6 +242,16 @@ def GenerateStops(gtfs):
   #Clean up stops data
   stops['lat'] = stops.geometry.y
   stops['lng'] = stops.geometry.x
+
+  #Drop unneeded columns
+  stops = stops.drop(columns=[
+    'wheelchair_boarding',
+    'stop_url',
+    'zone_id',
+    'stop_desc',
+    'location_type',
+    'stop_code'
+  ])
 
   stops['inductive_charging'] = False # Whether there's an inductive charger
   stops['evse'] = False               # Whether there is a traditional EVSE charger
