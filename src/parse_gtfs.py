@@ -172,14 +172,21 @@ def GenerateTrips(gtfs, date, service_ids):
 
   #Drop unneeded columns
   trips = trips.drop(columns=[ #refactor to be exclusive see issue #4
-    'wheelchair_accessible',
-    'pickup_type',
-    'drop_off_type',
-    'service_id',       #Trip ids include this as a substring
-    'direction_id',
-    'route_id',
-    'stop_sequence'     #This is held by the sorted order
+
   ])
+
+  #Drops 'route_id', 'timepoint', 'wheelchair_accessible', 'pickup_type',
+  #'drop_off_type', 'service_id', 'direction_id', 'route_id', 'stop_sequence'
+  trips = trips[[
+                'service_id',
+                'trip_id',
+                'trip_headsign',
+                'block_id',
+                'shape_id',
+                'arrival_time',
+                'departure_time',
+                'stop_id',
+               ]]
 
   #TODO: block_id is supposed to indicate continuous travel by a *single vehicle*
   #and, thus, might provide a good way of simplifying the problem
