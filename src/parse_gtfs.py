@@ -307,15 +307,12 @@ date, service_ids = ptg.read_busiest_date(feed_file)
 print("Service id chosen = {0}".format(service_ids))
 
 #Load file twice so that we don't modify it within these functions
-trips                = GenerateTrips(ptg.load_geo_feed(feed_file), date, service_ids)
-stops                = GenerateStops(ptg.load_geo_feed(feed_file))
-stop_times           = GenerateStopTimes(ptg.load_geo_feed(feed_file))
 road_segs, seg_props = GenerateRoadSegments(ptg.load_geo_feed(feed_file))
 
 data = {
-  "trips":      trips,
-  "stops":      stops,
-  "stop_times": stop_times,
+  "trips":      GenerateTrips(ptg.load_geo_feed(feed_file), date, service_ids),
+  "stops":      GenerateStops(ptg.load_geo_feed(feed_file)),
+  "stop_times": GenerateStopTimes(ptg.load_geo_feed(feed_file)),
   "road_segs":  road_segs,
   "seg_props":  seg_props
 }
