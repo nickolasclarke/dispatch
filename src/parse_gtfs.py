@@ -224,7 +224,9 @@ def GenerateTrips(gtfs, date, service_ids):
   trips = trips.sort_values(["block_id", "start_arrival_time"])
   next_trip = trips.shift(-1).copy()
   trips['wait_time'] = next_trip['start_departure_time']-trips['end_arrival_time']
-  trips['wait_time'][trips['block_id']!=next_trip['block_id']]=np.nan
+
+  has_next_trip = (trips['block_id']!=next_trip['block_id']).index
+  trips.loc[has_next_trip, 'wait_time'] = np.nan
 
   return trips
 
@@ -286,8 +288,9 @@ def GenerateRoadSegments(gtfs):
 
 def GenerateStopTimes(gtfs):
   #TODO: Worry about pickup type and dropoff type?
-  stop_times = gtfs.stop_times[['trip_id', 'stop_id']]
-  stop_times['stop_duration'] = gtfs.stop_times['departure_time'] - gtfs.stop_times['arrival_time']
+  stop_times = gtfs.stop_times.copy()
+  stop_times['stop_duration'] = stop_times['departure_time'] - stop_times['arrival_time']
+  stop_times = stop_times[['trip_id', 'stop_id', 'stop_duration']]
   return stop_times
 
 
