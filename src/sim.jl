@@ -3,6 +3,8 @@ using CSV
 using DataFrames
 using Distributions
 
+include("RoutingKit.jl")
+
 
 
 """
@@ -43,6 +45,24 @@ end
 
 
 
+"""
+Determine <travel time (s), travel distance (m)> from a stop to a lat lng
+
+Args:
+    search_radius - Snap stop to closest road network node searching within
+                    this radius.
+"""
+@memoize function TravelStopToLatLng(router, stops, stop_id, lat, lng; search_radius=1000)
+    stop = filter(row->row[:stop_id]==stop_id, stops)
+
+    stop_lat = stop[1, :lat]
+    stop_lng = stop[1, :lng]
+
+    time_dist = RoutingKit.getTravelTime(router, stop_lat, stop_lng, lat, lng, 1000)
+end
+
+
+
 function RunBlock(block, stops; battery_cap_kwh)
     #Set up the initial parameters of a bus
     energy = battery_cap_kwh
@@ -50,6 +70,8 @@ function RunBlock(block, stops; battery_cap_kwh)
     block_id = first(block[!, :block_id])
 
     trip_energy_req = 0
+
+    #TravelStopToLatLng(router, stops, 47472, 44.912391, -93.31904300000001)
 
     #Run through all the trips in the block
     for trip in eachrow(block)
@@ -80,8 +102,7 @@ function Model(trips, stops, stop_times, battery_cap_kwh=200, kwh_per_km=1.2, ch
     trips = sort(trips, [:block_id, :start_arrival_time])
 
     bus_swaps = []
-    print("Simulating...\n")
-    @time for block in DataFrames.groupby(trips, :block_id)
+    for block in DataFrames.groupby(trips, :block_id)
         append!(bus_swaps, RunBlock(block, stops, battery_cap_kwh=200))
     end
 
@@ -92,19 +113,22 @@ end
 
 
 
-if length(ARGS)!=2
-    println("Syntax: <Program> <Parsed GTFS Output Prefix> <Model Output>")
+if length(ARGS)!=3
+    println("Syntax: <Program> <Parsed GTFS Output Prefix> <OSM Data> <Model Output>")
     exit(0)
 end
 
 input_prefix    = ARGS[1]
-output_filename = ARGS[2]
+osm_data        = ARGS[2]
+output_filename = ARGS[3]
+
+router = RoutingKit.Router(osm_data)
 
 trips      = CSV.read(input_prefix * "_trips.csv")
 stops      = CSV.read(input_prefix * "_stops.csv")
 stop_times = CSV.read(input_prefix * "_stop_times.csv")
 
-@time bus_swaps = Model(trips, stops, stop_times)
+bus_swaps = Model(trips, stops, stop_times)
 print(bus_swaps)
 
-CSV.write(output_filename, bus_swaps)
+# CSV.write(output_filename, bus_swaps)
