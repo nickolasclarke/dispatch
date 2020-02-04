@@ -1,14 +1,15 @@
 #!/usr/bin/env julia
 using CSV
 using DataFrames
+using Distributions
 
 
 
+"""
+Return an object logging the time, departure stop, and block id of the 
+bus that needs swapping
+"""
 function SwapBus(time, stop_id, block_id)
-    """
-    Return an object logging the time, departure stop, and block id of the 
-    bus that needs swapping
-    """
     return Dict(
         :datetime=> time,
         :stop_id=>  stop_id,
@@ -18,22 +19,26 @@ end
 
 
 
-function GetStopChargingTime(stops, trip_id)
+"""
+For a given trip_id, determine how much time is spent waiting at stops during 
+that trip.
+
+Args:
+  stop_prob  - Probability of stopping at a given stop with zero duration
+  zstop_time - Seconds spent at a stop that is otherwise given zero duration
+"""
+function GetStopChargingTime(stops, trip_id; stop_prob=0.3, zstop_time=10)
     #Get list of stops used by this trip and merge in the stop data
     trip_stops = filter(row->row[:trip_id]==trip_id, stops)
-    #Total time stopped
+    #Total time we are scheduled to be stopped
     stopped_time = sum(trip_stops.stop_duration)
-    #Some of the stops with zero duration we do end up stopping at briefly
-    stop_prob  = 0.3 #Probability of stopping at a stop with zero duration
-    zstop_time = 10  #Time spent stopped at the stop
-    zero_count = sum(trip_stops.stop_duration.==0) #Number of zero-duration stops
-    #Number we actually stop at
-    #zero_count = np.random.binomial(zero_count, stop_prob, size=None) #Non-deterministic
-    zero_count = round(stop_prob*zero_count) #Deterministic
-    zero_time = zero_count*zstop_time
-    stopped_time += zero_time
 
-    return zero_time
+    #Some of the stops with zero duration we do end up stopping at briefly
+    zero_count = sum(trip_stops.stop_duration.==0)     #Number of zero-duration stops
+    zero_count = rand(Binomial(zero_count, stop_prob)) #Number we actually stop at
+    stopped_time += zero_count*zstop_time              #Add time spent at them
+
+    return stopped_time
 end
 
 
@@ -70,14 +75,8 @@ end
 
 
 function Model(trips, stops, stop_times, battery_cap_kwh=200, kwh_per_km=1.2, charging_rate=150)
-    print("Loading data...\n")
-    # trips      = DataFrames.DataFrame(Pandas.DataFrame(gtfs["trips"]))
-    # stop_times = DataFrames.DataFrame(Pandas.DataFrame(gtfs["stop_times"]))
-    # stops      = DataFrames.DataFrame(Pandas.DataFrame(gtfs["stops"]))
-    stops      = join(stop_times, stops, on=:stop_id, kind=:left)
-    stops      = filter(row->row[:inductive_charging] == true, stops)
-    print("Loaded\n")
-
+    stops = join(stop_times, stops, on=:stop_id, kind=:left)
+    stops = filter(row->row[:inductive_charging] == true, stops)
     trips = sort(trips, [:block_id, :start_arrival_time])
 
     bus_swaps = []
