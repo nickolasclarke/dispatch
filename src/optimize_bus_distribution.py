@@ -13,10 +13,9 @@ if len(sys.argv)!=2:
   sys.exit(-1)
 
 model_out_filename = sys.argv[1]
-bus_swaps          = pd.read_pickle(model_out_filename, compression='infer')
+bus_swaps          = pd.read_csv(model_out_filename)
 
-
-charge_time=200/500 #Capacity/Rate
+charge_time=200/150*3600 #Capacity/Rate
 q = []
 for idx,row in bus_swaps.iterrows():
     heapq.heappush(q, (row['datetime'], 'swap'))
@@ -26,12 +25,11 @@ maxbuses = 0
 buses = 0
 while len(q)>0:
     event = heapq.heappop(q)
-    print(event)
+    # print(event)
     if event[1]=='swap':
         buses -= 1
     elif event[1]=='free':
         buses += 1
     maxbuses = min(buses,maxbuses)
 
-
-bus_info = pd.read_pickle('msp3.pickle', compression='infer')
+print(f"Maximum buses for {model_out_filename}: {maxbuses}")
