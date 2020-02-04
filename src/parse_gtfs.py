@@ -321,7 +321,11 @@ data = {
   "seg_props":  seg_props
 }
 
+trips.to_csv(output_file+"_trips.csv", index=False)
+stops.to_csv(output_file+"_stops.csv", index=False)
+stop_times.to_csv(output_file+"_stop_times.csv", index=False)
+
 #Output
 #trips.drop(columns=['trip_id']).to_csv(output_file, index=False) #TODO?
-with open(output_file, 'wb') as handle:
+with open(output_file+".pickle", 'wb') as handle:
   pickle.dump(data, handle, protocol=4)
