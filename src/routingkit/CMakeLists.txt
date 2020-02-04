@@ -22,6 +22,6 @@ pybind11_add_module(pyroutingkit rk_python.cpp routingkit.cpp)
 target_link_libraries(pyroutingkit PRIVATE routingkit)
 install(TARGETS pyroutingkit DESTINATION bin)
 
-add_library(jlroutingkit rk_julia.cpp routingkit.cpp)
+add_library(jlroutingkit SHARED rk_julia.cpp routingkit.cpp)
 target_link_libraries(jlroutingkit PRIVATE routingkit JlCxx::cxxwrap_julia)
 install(TARGETS jlroutingkit DESTINATION bin)

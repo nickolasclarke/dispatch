@@ -17,7 +17,7 @@ namespace rk = RoutingKit;
 Router::Router(const std::string &pbf_filename){
   // Load a car routing graph from OpenStreetMap-based data
   graph = rk::simple_load_osm_car_routing_graph_from_pbf(pbf_filename);
-  auto tail  = rk::invert_inverse_vector(graph.first_out);
+  auto tail = rk::invert_inverse_vector(graph.first_out);
 
   // Build the shortest path index
   ch = rk::ContractionHierarchy::build(
@@ -31,8 +31,8 @@ Router::Router(const std::string &pbf_filename){
 
 
 
-//Returns the travel time in seconds
-unsigned Router::getTravelTime(const float from_lat, const float from_lon, const float to_lat, const float to_lon, const int search_radius_m) const {
+//Returns <travel time (s), travel distance (m)>
+std::vector<double> Router::getTravelTime(const double from_lat, const double from_lon, const double to_lat, const double to_lon, const int search_radius_m) const {
   const auto from = map_geo_position.find_nearest_neighbor_within_radius(from_lat, from_lon, search_radius_m).id;
   const auto to   = map_geo_position.find_nearest_neighbor_within_radius(to_lat, to_lon, search_radius_m).id;
 
@@ -43,7 +43,11 @@ unsigned Router::getTravelTime(const float from_lat, const float from_lon, const
   rk::ContractionHierarchyQuery ch_query(ch);
   ch_query.reset().add_source(from).add_target(to).run();
 
-  //Use ch_query.get_node_path() to get the path
+  double travel_time = ch_query.get_distance()/1000.0;
 
-  return ch_query.get_distance()/1000;
+  double distance = 0;
+  for(const auto &x: ch_query.get_arc_path())
+    distance += graph.geo_distance[x];
+
+  return std::vector<double>{{travel_time,distance}};
 }
