@@ -28,6 +28,8 @@ class BusModel:
         """
         Run the model
         """
+        groups = [(block_id, group) for (block_id, group) in self.gtfs['trips'].groupby(['block_id'])]
+
         p = Pool()
         #Return list of lists where each list is a block's list of bus swaps 
         bus_swaps = p.starmap(self.run_block, groups)
