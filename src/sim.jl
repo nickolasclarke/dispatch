@@ -93,7 +93,7 @@ end
 
 
 
-if length(ARGS)!=2:
+if length(ARGS)!=2
     println("Syntax: <Program> <Parsed GTFS Output Prefix> <Model Output>")
     exit(0)
 end
@@ -107,3 +107,5 @@ stop_times = CSV.read(input_prefix * "_stop_times.csv")
 
 @time bus_swaps = Model(trips, stops, stop_times)
 print(bus_swaps)
+
+CSV.write(output_filename, bus_swaps)
