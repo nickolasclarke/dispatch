@@ -1,24 +1,6 @@
-#!/usr/bin/env python3
+#!/usr/bin/env julia
 using CSV
 using DataFrames
-using Pandas
-using PyCall
-
-pickle = pyimport("pickle")
-
-# function mypickle(filename, obj)
-#     out = open(filename,"w")
-#     pickle.dump(obj, out)
-#     close(out)
-# end
-
-function unpickle(filename)
-    r = nothing
-    @pywith pybuiltin("open")(filename,"rb") as f begin
-        r = pickle.load(f)
-    end
-    return r
-end
 
 
 
@@ -27,7 +9,7 @@ function SwapBus(time, stop_id, block_id)
     Return an object logging the time, departure stop, and block id of the 
     bus that needs swapping
     """
-    return (
+    return Dict(
         :datetime=> time,
         :stop_id=>  stop_id,
         :block_id=> block_id
@@ -75,7 +57,7 @@ function RunBlock(block, stops; battery_cap_kwh)
         trip_energy_req -= stop_charge #- route_charge
 
         if energy <= trip_energy_req
-            append!(bus_swaps, SwapBus(trip.start_arrival_time, trip.start_stop_id, block_id))
+            push!(bus_swaps, SwapBus(trip.start_arrival_time, trip.start_stop_id, block_id))
             energy = battery_cap_kwh
         end
 
@@ -104,30 +86,24 @@ function Model(trips, stops, stop_times, battery_cap_kwh=200, kwh_per_km=1.2, ch
         append!(bus_swaps, RunBlock(block, stops, battery_cap_kwh=200))
     end
 
-    bus_swaps=[y for x in bus_swaps for y in x]
+    #Construct output DataFrame
+    #From: https://stackoverflow.com/a/60049139/752843
+    return DataFrame([NamedTuple{Tuple(keys(d))}(values(d)) for d in bus_swaps])
 end
 
-trips      = CSV.read("/z/bob_trips.csv")
-stops      = CSV.read("/z/bob_stops.csv")
-stop_times = CSV.read("/z/bob_stop_times.csv")
 
-# gtfs = unpickle("/z/bob.pickle")
+
+if length(ARGS)!=2:
+    println("Syntax: <Program> <Parsed GTFS Output Prefix> <Model Output>")
+    exit(0)
+end
+
+input_prefix    = ARGS[1]
+output_filename = ARGS[2]
+
+trips      = CSV.read(input_prefix * "_trips.csv")
+stops      = CSV.read(input_prefix * "_stops.csv")
+stop_times = CSV.read(input_prefix * "_stop_times.csv")
 
 @time bus_swaps = Model(trips, stops, stop_times)
 print(bus_swaps)
-
-# if len(sys.argv)!=3:
-#   print("Syntax: {0} <Parsed GTFS File> <Model Output>".format(sys.argv[0]))
-#   sys.exit(-1)
-
-# gtfs_filename   = sys.argv[1]
-# output_filename = sys.argv[2]
-# gtfs_input      = pd.read_pickle(gtfs_filename, compression='infer')
-# model           = BusModel(gtfs_input)
-# model.run()
-
-# with open(output_filename, 'wb') as handle:
-#   pickle.dump(model.bus_swaps, handle, protocol=4)
-
-
-
