@@ -78,10 +78,10 @@ class BusModel:
         Return an object logging the time, departure stop, and block id of the 
         bus that needs swapping
         """
-        return {
-            'datetime': time,
-            'stop_id':  stop_id,
-            'block_id': block_id
+        return {'datetime':    time,
+                'stop_id':     stop_id,
+                'block_id':    block_id,
+                'replacement': is_replacement
         }
 
     def run_block(self, block_id, trips):
