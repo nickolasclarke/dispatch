@@ -1,12 +1,13 @@
 import json
 import itertools
+import subprocess
 import shutil
 import glob
 
 import requests
 import partridge as ptg
 
-from folderstats import folderstats as fs
+from os.path import basename
 
 BASE_URL = 'https://api.transitfeeds.com/v1/'
 KEY      = 'd8243bad-de5a-47f7-8103-6d3c064d08da'
@@ -95,17 +96,45 @@ feeds = [feed for page in feeds for feed in page]
 # download the feeds
 [get_feed(feed['id']) for feed in feeds]
 
-
-# feed_df = fs('../data/feeds/')
-# feed_df = feed_df.drop_duplicates()
-# feed_df = feed_df[feed_df['extension'] =='zip']
-# feed_df = feed_df.drop_duplicates()
-# feed_df = feed_df.reset_index(drop=True)
-
-
 #validate and move feeds respectively
-#TODO, store paths names
+#TODO, use sys.argv input for relative path
 [validate_feed(row) for row in glob.glob('../data/feeds/*.zip')]
 
 #validate for block_id, and then simply attempt to run the feed.
+def validate_feed(path):
+    try:
+        feed = ptg.load_feed(path)
+    except Exception as err:
+        #unload_path = shutil.move(path, '../data/feeds/unloadable/')
+        print(f'Cannot load GTFS feed: {path}', err)
+        #return unload_path
+    # try:
+    #     assert feed.routes.route_type.isin(itertools.chain(*route_types)).any()
+    #     succ_path = shutil.move(path, '../data/feeds/success/')
+    # except Exception as err:
+    #     nobus_path = shutil.move(path, '../data/feeds/no_bus/')
+    #     print(f'no Bus/Coach route_types found in feed: {path}', err)
+    #     return nobus_path
+    try: 
+        assert feed.trips.columns.isin(['block_id']).any()
+        # block_path = shutil.move(succ_path, 'includes_block/') #TODO how to use relative paths?
+        block_path = shutil.move(path, '../data/feeds/success/includes_block/') #TODO temp, remove for above line.
+    except AttributeError as err:
+        print(f'no block_id found in the feed: {path}', err) #TODO broken now that I use .isin().any() for checking block_id
+    except Exception as err:
+         print(f'Unexpected error in validating feed: {path}', err)
 
+def parse_feed(path):
+    feed_name = basename(path).split('.')[0]
+    try:
+        a = subprocess.check_output(['python',
+                                     'parse_gtfs.py',
+                                     path,
+                                     feed_name,
+                                    ], stderr=subprocess.STDOUT)
+        return(str(f''))
+    except subprocess.CalledProcessError as cpe:
+        print(cpe.output)
+        return(cpe.output)
+
+parsed_results = [parse_feed(path) for path in glob.glob('../data/feeds/success/includes_block/*.zip')]

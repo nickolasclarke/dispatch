@@ -7,3 +7,6 @@ venv/
 *.so
 build/
 temp/
+src/__pycache__/
+src/includes_block
+.python-version
