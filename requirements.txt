@@ -8,3 +8,4 @@ mapclassify==2.1.1
 sklearn
 matplotlib
 wheel==0.34.1
+contextily==1.0rc2 # still pre-release on pip, but <1.x does not include add_basemap()
