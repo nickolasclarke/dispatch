@@ -8,6 +8,7 @@ import glob
 import requests
 import partridge as ptg
 
+from multiprocessing import Pool
 from os.path import basename
 
 BASE_URL = 'https://api.transitfeeds.com/v1/'
@@ -78,7 +79,7 @@ def validate_feed(path):
         return nobus_path
     try: 
         assert feed.trips.columns.isin(['block_id']).any()
-        block_path = shutil.move(succ_path, 'includes_block/') #TODO how to use relative paths?
+        block_path = shutil.move(succ_path, '../data/feeds/success/includes_block/') #TODO how to use relative paths?
     except AttributeError as err:
         print(f'no block_id found in the feed: {path}', err) #TODO this logic is never used now that I use .isin().any() for checking block_id. How to re-introduce?
     except Exception as err:
@@ -87,16 +88,20 @@ def validate_feed(path):
 
 def parse_feed(path):
     feed_name = basename(path).split('.')[0]
+    print(f'parsing {feed_name}')
     try:
         a = subprocess.check_output(['python',
                                      'parse_gtfs.py',
                                      path,
                                      feed_name,
                                     ], stderr=subprocess.STDOUT)
+        shutil.move(path, '../data/feeds/success/includes_block/parsed/') #TODO this does not appear to be working
         return({'name':str(f'{feed_name}'),'error': 'NaN'})
     except subprocess.CalledProcessError as cpe:
         print(cpe.output)
         return({'name':str(f'{feed_name}'),'error':cpe.output})
+    except Exception as err:
+        print('Unexpected error:', err)
 
 #get the first page of results to cache the number of pages of results
 #TODO store this result as well
@@ -109,14 +114,20 @@ for i in range(1, pages + 1):
 # flatten the feed list
 feeds = [feed for page in feeds for feed in page]
 # download the feeds
-[get_feed(feed['id']) for feed in feeds]
+[get_feed(feed['id']) for feed in feeds] #TODO Async this
 
 #validate and move feeds respectively
 #TODO, use sys.argv input for relative path
-[validate_feed(row) for row in glob.glob('../data/feeds/*.zip')]
-parsed_results = [parse_feed(path) for path in glob.glob(
-                 '../data/feeds/success/includes_block/*.zip'
-                 )]
+# parsed_results = parse_p.map(parse_feed, glob.glob('../data/feeds/success/includes_block/*.zip')[0:10])
+val_p = Pool()
+parse_p = Pool()
+
+[validate_feed(row) for row in glob.glob('../data/feeds/*.zip')] #TODO parallel this
+parsed_results = parse_p.map(parse_feed, glob.glob('../data/feeds/*.zip'))
+
+# parsed_results = [parse_feed(path) for path in glob.glob( #TODO parallel this
+#                  '../data/feeds/success/includes_block/*.zip'
+#                  )]
 
 with open('validation_results.csv', 'w') as csv_file:
     dict_writer = csv.DictWriter(csv_file, parsed_results[0].keys())
