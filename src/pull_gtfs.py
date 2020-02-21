@@ -1,3 +1,4 @@
+import csv
 import json
 import itertools
 import subprocess
@@ -33,6 +34,7 @@ route_types = [
     [800] #Extended Trollybus codes
 ]
 
+
 def get_feeds(page):
     '''returns a 
     '''
@@ -44,6 +46,7 @@ def get_feeds(page):
                                          'limit':'100'
                                         })
     return r
+
 
 def get_feed(fid):
     '''
@@ -58,30 +61,42 @@ def get_feed(fid):
         f.write(r.content)
     return filename
 
+
 def validate_feed(path):
     try:
         feed = ptg.load_feed(path)
     except Exception as err:
-        new_path = shutil.move(path, '../data/feeds/unloadable/')
-        print('Cannot load input as a GTFS feed', err)
-        return new_path
+        unload_path = shutil.move(path, '../data/feeds/unloadable/')
+        print(f'Cannot load GTFS feed: {path}', err)
+        return unload_path
     try:
         assert feed.routes.route_type.isin(itertools.chain(*route_types)).any()
-        new_path = shutil.move(path, '../data/feeds/success/')
-        return new_path
+        succ_path = shutil.move(path, '../data/feeds/success/')
     except Exception as err:
-        new_path = shutil.move(path, '../data/feeds/no_bus/')
-        print('no Bus/Coach route_types found', err)
-        return new_path
-        
-    # if feed.routes.route_type.isin(itertools.chain(*route_types)).any():
-    #     new_path = shutil.move(path, '../data/feeds/success/')
-    #     return new_path
-    # else:
-    #     new_path = shutil.move(path, '../data/feeds/no_bus/')
-    #     print('no Bus/Coach route_types found')
-    #     return new_path
-    #     # move to another folder
+        nobus_path = shutil.move(path, '../data/feeds/no_bus/')
+        print(f'no Bus/Coach route_types found in feed: {path}', err)
+        return nobus_path
+    try: 
+        assert feed.trips.columns.isin(['block_id']).any()
+        block_path = shutil.move(succ_path, 'includes_block/') #TODO how to use relative paths?
+    except AttributeError as err:
+        print(f'no block_id found in the feed: {path}', err) #TODO this logic is never used now that I use .isin().any() for checking block_id. How to re-introduce?
+    except Exception as err:
+         print(f'Unexpected error in validating feed: {path}', err)
+
+
+def parse_feed(path):
+    feed_name = basename(path).split('.')[0]
+    try:
+        a = subprocess.check_output(['python',
+                                     'parse_gtfs.py',
+                                     path,
+                                     feed_name,
+                                    ], stderr=subprocess.STDOUT)
+        return({'name':str(f'{feed_name}'),'error': 'NaN'})
+    except subprocess.CalledProcessError as cpe:
+        print(cpe.output)
+        return({'name':str(f'{feed_name}'),'error':cpe.output})
 
 #get the first page of results to cache the number of pages of results
 #TODO store this result as well
@@ -99,42 +114,11 @@ feeds = [feed for page in feeds for feed in page]
 #validate and move feeds respectively
 #TODO, use sys.argv input for relative path
 [validate_feed(row) for row in glob.glob('../data/feeds/*.zip')]
+parsed_results = [parse_feed(path) for path in glob.glob(
+                 '../data/feeds/success/includes_block/*.zip'
+                 )]
 
-#validate for block_id, and then simply attempt to run the feed.
-def validate_feed(path):
-    try:
-        feed = ptg.load_feed(path)
-    except Exception as err:
-        #unload_path = shutil.move(path, '../data/feeds/unloadable/')
-        print(f'Cannot load GTFS feed: {path}', err)
-        #return unload_path
-    # try:
-    #     assert feed.routes.route_type.isin(itertools.chain(*route_types)).any()
-    #     succ_path = shutil.move(path, '../data/feeds/success/')
-    # except Exception as err:
-    #     nobus_path = shutil.move(path, '../data/feeds/no_bus/')
-    #     print(f'no Bus/Coach route_types found in feed: {path}', err)
-    #     return nobus_path
-    try: 
-        assert feed.trips.columns.isin(['block_id']).any()
-        # block_path = shutil.move(succ_path, 'includes_block/') #TODO how to use relative paths?
-        block_path = shutil.move(path, '../data/feeds/success/includes_block/') #TODO temp, remove for above line.
-    except AttributeError as err:
-        print(f'no block_id found in the feed: {path}', err) #TODO broken now that I use .isin().any() for checking block_id
-    except Exception as err:
-         print(f'Unexpected error in validating feed: {path}', err)
-
-def parse_feed(path):
-    feed_name = basename(path).split('.')[0]
-    try:
-        a = subprocess.check_output(['python',
-                                     'parse_gtfs.py',
-                                     path,
-                                     feed_name,
-                                    ], stderr=subprocess.STDOUT)
-        return(str(f''))
-    except subprocess.CalledProcessError as cpe:
-        print(cpe.output)
-        return(cpe.output)
-
-parsed_results = [parse_feed(path) for path in glob.glob('../data/feeds/success/includes_block/*.zip')]
+with open('validation_results.csv', 'w') as csv_file:
+    dict_writer = csv.DictWriter(csv_file, parsed_results[0].keys())
+    dict_writer.writeheader()
+    dict_writer.writerows(parsed_results)
