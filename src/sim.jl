@@ -1,7 +1,6 @@
 #!/usr/bin/env julia
 using Distributions
 using JuliaDB
-using Memoize
 
 include("RoutingKit.jl")
 
