@@ -1,6 +1,7 @@
 #!/usr/bin/env julia
 using Distributions
 using JuliaDB
+using Unitful
 
 include("RoutingKit.jl")
 
@@ -40,13 +41,13 @@ Args:
                     this radius.
 """
 function TimeDistanceBetweenPoints(router, ll1, ll2; search_radius=1000)
-    time_dist = try
+    try
         RoutingKit.getTravelTime(router, ll1[:lat], ll1[:lng], ll2[:lat], ll2[:lng], 1000)
+        return (time=time_dist[1]u"s", dist=time_dist[2]u"m")
     catch
         println("Warning: Couldn't find a node near either ",ll1," or ",ll2)
-        (3600/4, 5000) #Default value: 15 minutes and 5km
+        return (time=15u"minute", dist=5u"km") 
     end
-    return time_dist
 end
 
 
@@ -66,14 +67,14 @@ function RunBlock(block, stop_ll, router, depots, params)
     prevtrip = block[1]
 
     #Get time, distance, and energy from depot to route
-    block_time_depot_to_start, block_dist_depot_to_start, start_depot = FindClosestDepotByTime(router, stop_ll[prevtrip.start_stop_id], depots)
-    block_energy_depot_to_start = block_dist_depot_to_start * params[:kwh_per_km]
+    bstart_depot = FindClosestDepotByTime(router, stop_ll[prevtrip.start_stop_id], depots)
+    block_energy_depot_to_start = bstart_depot[:dist] * params[:kwh_per_km]
 
     #Modify first trip of block appropriately
     block[1] = merge(block[1], (;
         bus_id=1, 
         energy_left = params[:battery_cap_kwh] - block_energy_depot_to_start, 
-        depot = start_depot
+        depot = bstart_depot[:id]
     ))
 
     previ=1
@@ -83,22 +84,22 @@ function RunBlock(block, stop_ll, router, depots, params)
         prevtrip = block[previ]
 
         #TODO: Incorporate charging at the beginning of trip if there is a charger present
-        trip_energy = trip.distance # + route_to_start.distance) * self.params[:kwh_per_km] #TODO: Energy efficiency
+        trip_energy = trip.distance * params[:kwh_per_km]
 
         #TODO: Incorporate energetics of stopping sporadically along the trip
         #trip_energy -= GetStopChargingTime(stops, trip.trip_id) #TODO: Convert to energy
 
         #Get energetics of completing this trip and then going to a depot
-        time_from_end_to_depot, dist_from_end_to_depot, end_depot = FindClosestDepotByTime(router, stop_ll[trip.end_stop_id], depots)
-        energy_from_end_to_depot = dist_from_end_to_depot * params[:kwh_per_km]
+        end_depot = FindClosestDepotByTime(router, stop_ll[trip.end_stop_id], depots)
+        energy_from_end_to_depot = end_depot[:dist] * params[:kwh_per_km]
 
         #Do we have eneough energy to complete this trip and then go to the depot?
-        if prevtrip.energy_left - trip_energy - energy_from_end_to_depot < 0
+        if prevtrip.energy_left - trip_energy - energy_from_end_to_depot < 0u"kW*hr"
             #We can't complete this trip and get back to the depot, so it was better to end the block after the previous trip
             #TODO: Assert previous trip ending stop_id is same as this trip's starting stop_id
             #Get closest depot and energetics to the start of this trip (which is also the end of the previous trip)
-            time_from_start_to_depot, dist_from_start_to_depot, start_depot = FindClosestDepotByTime(router, stop_ll[trip.start_stop_id], depots)
-            energy_from_start_to_depot = dist_from_start_to_depot * params[:kwh_per_km]
+            start_depot = FindClosestDepotByTime(router, stop_ll[trip.start_stop_id], depots)
+            energy_from_start_to_depot = start_depot[:dist] * params[:kwh_per_km]
             
             #TODO: Something bad has happened if we've reached this: we shouldn't have even made the last trip.
             if energy_from_start_to_depot < prevtrip.energy_left
@@ -110,13 +111,13 @@ function RunBlock(block, stop_ll, router, depots, params)
             charge_time = (params[:battery_cap_kwh]-energy_left)/params[:charging_rate]
             block[previ] = merge(block[previ], (;
                 energy_left = energy_left,
-                bus_busy_end = prevtrip.bus_busy_end+time_from_end_to_depot + charge_time,
-                depot = end_depot
+                bus_busy_end = prevtrip.bus_busy_end+start_depot[:time] + charge_time,
+                depot = start_depot[:id]
             ))
 
             #Alter this trip so that we start it with a fresh bus
             block[tripi] = merge(block[tripi], (;
-                bus_busy_start = trip.start_arrival_time - time_from_start_to_depot,
+                bus_busy_start = trip.start_arrival_time - start_depot[:time],
                 bus_id = prevtrip.bus_id+1
             ))
         else
@@ -138,11 +139,11 @@ function RunBlock(block, stop_ll, router, depots, params)
     end
 
     #Get energetics of getting from the final trip to its depot
-    block_time_end_to_depot, block_dist_end_to_depot = FindClosestDepotByTime(router, stop_ll[prevtrip.start_stop_id], depots)
-    block_energy_end_to_depot = block_dist_end_to_depot * params[:kwh_per_km]
+    bend_depot = FindClosestDepotByTime(router, stop_ll[prevtrip.start_stop_id], depots)
+    block_energy_end_to_depot = bend_depot[:dist] * params[:kwh_per_km]
 
     #Adjust beginning and end
-    block[1]   = merge(block[1], (;bus_busy_start = block[1].bus_busy_start - block_time_depot_to_start))
+    block[1]   = merge(block[1], (;bus_busy_start = block[1].bus_busy_start - bstart_depot[:time]))
     block[end] = merge(block[end], (; energy_left = block[end].energy_left - block_energy_end_to_depot))
 end
 
@@ -164,11 +165,11 @@ function Model(trips, stop_ll, router, depots, params)
     trips = sort(trips, :start_arrival_time)
 
     #Add/zero out the bus_id column
-    trips = transform(trips, :bus_id         => -1  *ones(Int64,   length(trips)))
-    trips = transform(trips, :energy_left    => -1.0*ones(Float64, length(trips)))
-    trips = transform(trips, :bus_busy_start => -1.0*ones(Float64, length(trips)))
-    trips = transform(trips, :bus_busy_end   => -1.0*ones(Float64, length(trips)))
-    trips = transform(trips, :depot          => -1  *ones(Int64,   length(trips)))
+    trips = transform(trips, :bus_id         => -1          *ones(Int64,   length(trips)))
+    trips = transform(trips, :energy_left    => -1.0u"kW*hr"*ones(Float64, length(trips)))
+    trips = transform(trips, :bus_busy_start => -1.0u"s"    *ones(Float64, length(trips)))
+    trips = transform(trips, :bus_busy_end   => -1.0u"s"    *ones(Float64, length(trips)))
+    trips = transform(trips, :depot          => -1          *ones(Int64,   length(trips)))
 
     bus_swaps = []
     for (block_id,block) in groupby(identity, trips, :block_id)
@@ -187,33 +188,35 @@ let                                #Local scope for memoization
     global FindClosestDepotByTime  #Allow function to escape local scope
     cached = Dict()                #Memoization dictionary
     """
-    Given a set of depots, find the closest one to a query point
+    Given a set of depots, find the closest one to a query point.
 
     Args:
         router   - Router object used to determine network distances between stops
         query_ll - LatLng point to find closest depot to
         depots   - List of depot locations
+
+    Returns:
+        (seconds to nearest depot, meters to nearest depot, id of nearest depot)
     """
     function FindClosestDepotByTime(router, query_ll, depots)
         if haskey(cached, query_ll) #Return cached answer, if we have one
             return cached[query_ll]
         end
-        mintime = ((Inf,Inf),0)     #Infinitely bad choice of depot
-        for i in 1:length(depots)   #Search all depots for a better one
+        mintime = (time=Inf*u"s",dist=Inf*u"m",id=0) #Infinitely bad choice of depot
+        for i in 1:length(depots)                    #Search all depots for a better one
             timedist = TimeDistanceBetweenPoints(router, query_ll, depots[i])
-            if timedist[1]<mintime[1][1]
-                mintime = (timedist, i)
+            if timedist[:time]<mintime[:time]
+                mintime = (timedist..., id=i)
             end
         end
-        ret = (mintime[1][1],mintime[1][2],mintime[2])
-        cached[query_ll] = ret
-        return ret
+        cached[query_ll] = mintime
+        return mintime
     end
 end
 
 
 #TODO: Used for testing
-#ARGS = ["../temp/minneapolis", "../data/minneapolis-saint-paul_minnesota.osm.pbf", "/z/out"]
+#ARGS = ["../../temp/minneapolis", "../../data/minneapolis-saint-paul_minnesota.osm.pbf", "/z/out"]
 #julia sim.jl "../../temp/minneapolis" "../../data/minneapolis-saint-paul_minnesota.osm.pbf" "/z/out"
 
 if length(ARGS)!=3
@@ -230,6 +233,16 @@ trips      = loadtable(input_prefix * "_trips.csv")
 stops      = loadtable(input_prefix * "_stops.csv")
 stop_times = loadtable(input_prefix * "_stop_times.csv")
 
+#Apply units to tables
+trips = transform(trips, :distance             => :distance             => x->x*u"m")
+trips = transform(trips, :start_arrival_time   => :start_arrival_time   => x->x*u"s")
+trips = transform(trips, :start_departure_time => :start_departure_time => x->x*u"s")
+trips = transform(trips, :end_arrival_time     => :end_arrival_time     => x->x*u"s")
+trips = transform(trips, :end_departure_time   => :end_departure_time   => x->x*u"s")
+trips = transform(trips, :wait_time            => :wait_time            => x->x*u"s")
+
+stop_times = transform(stop_times, :stop_duration => :stop_duration => x->x*u"s")
+
 #TODO: Read these from a locale-specific config file, or something
 depots = [
     (lat=45, lng=-93)
@@ -238,9 +251,9 @@ depots = [
 #TODO: Get these from command-line args or a config file
 #TODO: Enforce units somehow?
 params = (
-  battery_cap_kwh = 200, 
-  kwh_per_km      = 1.2, #TODO: Note that this value does not work within the current units framework
-  charging_rate   = 150
+  battery_cap_kwh = 200u"kW*hr", 
+  kwh_per_km      = 1.2u"kW*hr/km",
+  charging_rate   = 150u"kW"
 )
 
 #Convert stops table into dictionary for fast lookups.
