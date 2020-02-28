@@ -155,11 +155,11 @@ Simulate a set of trips to determine which buses are needed when and how much
 energy is used.
 
 Args:
-    trips - List of trips to be taken (MODIFIED WITH OUTPUT)
+    trips   - List of trips to be taken
     stop_ll - Dictionary containing the latitudes and longitudes of stops
     router  - Router object used to determine network distances between stops
     depots  - List of depot locations
-    params - Model parameters
+    params  - Model parameters
 """
 function Model(trips, stop_ll, router, depots, params)
     trips = sort(trips, :start_arrival_time)
@@ -216,22 +216,24 @@ end
 
 
 #TODO: Used for testing
-#ARGS = ["../../temp/minneapolis", "../../data/minneapolis-saint-paul_minnesota.osm.pbf", "/z/out"]
-#julia sim.jl "../../temp/minneapolis" "../../data/minneapolis-saint-paul_minnesota.osm.pbf" "/z/out"
+#ARGS = ["../../temp/minneapolis", "../../data/minneapolis-saint-paul_minnesota.osm.pbf", "../../data/depots_minneapolis.csv", "/z/out"]
+#julia -i sim.jl "../../temp/minneapolis" "../../data/minneapolis-saint-paul_minnesota.osm.pbf" "../../data/depots_minneapolis.csv" "/z/out"
 
-if length(ARGS)!=3
-    println("Syntax: <Program> <Parsed GTFS Output Prefix> <OSM Data> <Model Output>")
+if length(ARGS)!=4
+    println("Syntax: <Program> <Parsed GTFS Output Prefix> <OSM Data> <Depots File> <Model Output>")
     exit(0)
 end
 
 input_prefix    = ARGS[1]
 osm_data        = ARGS[2]
-output_filename = ARGS[3]
+depots_filename = ARGS[3]
+output_filename = ARGS[4]
 
 router     = RoutingKit.Router(osm_data)
 trips      = loadtable(input_prefix * "_trips.csv")
 stops      = loadtable(input_prefix * "_stops.csv")
 stop_times = loadtable(input_prefix * "_stop_times.csv")
+depots     = loadtable(depots_filename)
 
 #Apply units to tables
 trips = transform(trips, :distance             => :distance             => x->x*u"m")
@@ -243,13 +245,7 @@ trips = transform(trips, :wait_time            => :wait_time            => x->x*
 
 stop_times = transform(stop_times, :stop_duration => :stop_duration => x->x*u"s")
 
-#TODO: Read these from a locale-specific config file, or something
-depots = [
-    (lat=45, lng=-93)
-]
-
 #TODO: Get these from command-line args or a config file
-#TODO: Enforce units somehow?
 params = (
   battery_cap_kwh = 200u"kW*hr", 
   kwh_per_km      = 1.2u"kW*hr/km",
