@@ -45,7 +45,7 @@ function TimeDistanceBetweenPoints(router, ll1, ll2; search_radius=1000)
         RoutingKit.getTravelTime(router, ll1[:lat], ll1[:lng], ll2[:lat], ll2[:lng], 1000)
         return (time=time_dist[1]u"s", dist=time_dist[2]u"m")
     catch
-        println("Warning: Couldn't find a node near either ",ll1," or ",ll2)
+        println("\nWarning: Couldn't find a node near either ",ll1," or ",ll2)
         return (time=15u"minute", dist=5u"km") 
     end
 end
@@ -93,7 +93,7 @@ function RunBlock(block, stop_ll, router, depots, params)
         end_depot = FindClosestDepotByTime(router, stop_ll[trip.end_stop_id], depots)
         energy_from_end_to_depot = end_depot[:dist] * params[:kwh_per_km]
 
-        #Do we have eneough energy to complete this trip and then go to the depot?
+        #Do we have enough energy to complete this trip and then go to the depot?
         if prevtrip.energy_left - trip_energy - energy_from_end_to_depot < 0u"kW*hr"
             #We can't complete this trip and get back to the depot, so it was better to end the block after the previous trip
             #TODO: Assert previous trip ending stop_id is same as this trip's starting stop_id
@@ -103,7 +103,7 @@ function RunBlock(block, stop_ll, router, depots, params)
             
             #TODO: Something bad has happened if we've reached this: we shouldn't have even made the last trip.
             if energy_from_start_to_depot < prevtrip.energy_left
-                #throw "Energy trap found!"
+                println("\nEnergy trap found!")
             end
 
             #Alter the previous trip to note that we ended it
@@ -261,4 +261,4 @@ params = (
 stop_ll = Dict(select(stops, :stop_id)[i] => (lat=select(stops, :lat)[i], lng=select(stops, :lng)[i]) for i in 1:length(stops))
 
 #Run the model
-Model(trips, stop_ll, router, depots, params)
+bus_assignments = Model(trips, stop_ll, router, depots, params)
