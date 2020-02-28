@@ -5,5 +5,6 @@ JLCXX_MODULE define_julia_module(jlcxx::Module& mod)
 {
   mod.add_type<Router>("Router")
     .constructor<const std::string&>()
-    .method("getTravelTime", &Router::getTravelTime);
+    .method("getTravelTime", &Router::getTravelTime)
+    .method("getNearestNode", &Router::getNearestNode);
 }
