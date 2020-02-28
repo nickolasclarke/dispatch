@@ -5,6 +5,7 @@
 #include <iostream>
 #include <limits>
 #include <stdexcept>
+#include <string>
 
 #include "routingkit.hpp"
 
@@ -31,13 +32,31 @@ Router::Router(const std::string &pbf_filename){
 
 
 
-//Returns <travel time (s), travel distance (m)>
-std::vector<double> Router::getTravelTime(const double from_lat, const double from_lon, const double to_lat, const double to_lon, const int search_radius_m) const {
-  const auto from = map_geo_position.find_nearest_neighbor_within_radius(from_lat, from_lon, search_radius_m).id;
-  const auto to   = map_geo_position.find_nearest_neighbor_within_radius(to_lat, to_lon, search_radius_m).id;
+unsigned Router::getNearestNode(const double lat, const double lon, const int search_radius_m) const {
+  const auto id = map_geo_position.find_nearest_neighbor_within_radius(lat, lon, search_radius_m).id;
+  if(id==rk::invalid_id)
+    throw std::runtime_error("No node near: "+std::to_string(lat)+","+std::to_string(lon));
+  return id;
+}
 
-  if(from==rk::invalid_id || to==rk::invalid_id)
-    throw std::runtime_error("No node near target position.");
+
+
+///Returns <travel time (s), travel distance (m)>
+std::vector<double> Router::getTravelTime(const double from_lat, const double from_lon, const double to_lat, const double to_lon, const int search_radius_m) const {
+  unsigned from;
+  unsigned to;
+
+  try {
+    const auto from = getNearestNode(from_lat, from_lon, search_radius_m);
+  } catch (const std::exception &) {
+    throw std::runtime_error("No node near start position!");
+  }
+
+  try {
+    const auto to = getNearestNode(to_lat, to_lon, search_radius_m);
+  } catch (const std::exception &) {
+    throw std::runtime_error("No node near target position!");
+  }
 
   // Besides the CH itself we need a query object. 
   rk::ContractionHierarchyQuery ch_query(ch);

@@ -1,5 +1,5 @@
 #!/usr/bin/env julia
-using Distributions
+# using Distributions
 using JuliaDB
 using Unitful
 
@@ -8,7 +8,7 @@ include("RoutingKit.jl")
 
 
 """
-For a given trip_id, determine how much time is spent waiting at stops during 
+For a given trip_id, determine how much time is spent waiting at stops during
 that trip.
 
 Args:
@@ -37,16 +37,25 @@ Determine <travel time (s), travel distance (m)> between two latlng points using
 the road network held in router.
 
 Args:
-    search_radius - Snap stop to closest road network node searching within
-                    this radius.
+    params - Parameter pack including `search_radius` - Snap stop to closest
+             road network node searching within this radius.
 """
-function TimeDistanceBetweenPoints(router, ll1, ll2; search_radius=1000)
+function TimeDistanceBetweenPoints(router, ll1, ll2, params)
     try
-        RoutingKit.getTravelTime(router, ll1[:lat], ll1[:lng], ll2[:lat], ll2[:lng], 1000)
-        return (time=time_dist[1]u"s", dist=time_dist[2]u"m")
-    catch
+      time_dist = RoutingKit.getTravelTime(router, ll1[:lat], ll1[:lng], ll2[:lat], ll2[:lng], Int32(ustrip(u"m", params.search_radius)))
+      return (time=time_dist[1]u"s", dist=time_dist[2]u"m")
+    catch e
+      errmsg = sprint(showerror, e)
+      if occursin("start",errmsg)
+        println("No node near start position: ", ll1)
+        return (time=15u"minute", dist=5u"km")
+      elseif occursin("target",errmsg)
+        println("No node near target position: ", ll2)
+        return (time=15u"minute", dist=5u"km")
+      else
+        println(e)
         println("\nWarning: Couldn't find a node near either ",ll1," or ",ll2)
-        return (time=15u"minute", dist=5u"km") 
+      end
     end
 end
 
@@ -67,13 +76,13 @@ function RunBlock(block, stop_ll, router, depots, params)
     prevtrip = block[1]
 
     #Get time, distance, and energy from depot to route
-    bstart_depot = FindClosestDepotByTime(router, stop_ll[prevtrip.start_stop_id], depots)
+    bstart_depot = FindClosestDepotByTime(router, stop_ll[prevtrip.start_stop_id], depots, params)
     block_energy_depot_to_start = bstart_depot[:dist] * params[:kwh_per_km]
 
     #Modify first trip of block appropriately
     block[1] = merge(block[1], (;
-        bus_id=1, 
-        energy_left = params[:battery_cap_kwh] - block_energy_depot_to_start, 
+        bus_id=1,
+        energy_left = params[:battery_cap_kwh] - block_energy_depot_to_start,
         depot = bstart_depot[:id]
     ))
 
@@ -90,7 +99,7 @@ function RunBlock(block, stop_ll, router, depots, params)
         #trip_energy -= GetStopChargingTime(stops, trip.trip_id) #TODO: Convert to energy
 
         #Get energetics of completing this trip and then going to a depot
-        end_depot = FindClosestDepotByTime(router, stop_ll[trip.end_stop_id], depots)
+        end_depot = FindClosestDepotByTime(router, stop_ll[trip.end_stop_id], depots, params)
         energy_from_end_to_depot = end_depot[:dist] * params[:kwh_per_km]
 
         #Do we have enough energy to complete this trip and then go to the depot?
@@ -98,9 +107,9 @@ function RunBlock(block, stop_ll, router, depots, params)
             #We can't complete this trip and get back to the depot, so it was better to end the block after the previous trip
             #TODO: Assert previous trip ending stop_id is same as this trip's starting stop_id
             #Get closest depot and energetics to the start of this trip (which is also the end of the previous trip)
-            start_depot = FindClosestDepotByTime(router, stop_ll[trip.start_stop_id], depots)
+            start_depot = FindClosestDepotByTime(router, stop_ll[trip.start_stop_id], depots, params)
             energy_from_start_to_depot = start_depot[:dist] * params[:kwh_per_km]
-            
+
             #TODO: Something bad has happened if we've reached this: we shouldn't have even made the last trip.
             if energy_from_start_to_depot < prevtrip.energy_left
                 println("\nEnergy trap found!")
@@ -139,7 +148,7 @@ function RunBlock(block, stop_ll, router, depots, params)
     end
 
     #Get energetics of getting from the final trip to its depot
-    bend_depot = FindClosestDepotByTime(router, stop_ll[prevtrip.start_stop_id], depots)
+    bend_depot = FindClosestDepotByTime(router, stop_ll[prevtrip.start_stop_id], depots, params)
     block_energy_end_to_depot = bend_depot[:dist] * params[:kwh_per_km]
 
     #Adjust beginning and end
@@ -198,13 +207,13 @@ let                                #Local scope for memoization
     Returns:
         (seconds to nearest depot, meters to nearest depot, id of nearest depot)
     """
-    function FindClosestDepotByTime(router, query_ll, depots)
+    function FindClosestDepotByTime(router, query_ll, depots, params)
         if haskey(cached, query_ll) #Return cached answer, if we have one
             return cached[query_ll]
         end
         mintime = (time=Inf*u"s",dist=Inf*u"m",id=0) #Infinitely bad choice of depot
         for i in 1:length(depots)                    #Search all depots for a better one
-            timedist = TimeDistanceBetweenPoints(router, query_ll, depots[i])
+            timedist = TimeDistanceBetweenPoints(router, query_ll, depots[i], params)
             if timedist[:time]<mintime[:time]
                 mintime = (timedist..., id=i)
             end
@@ -212,6 +221,22 @@ let                                #Local scope for memoization
         cached[query_ll] = mintime
         return mintime
     end
+end
+
+
+
+function DepotsHaveNodes(router, depots, params)
+    good = true
+    for i in 1:length(depots)
+        try
+            road_node = RoutingKit.getNearestNode(router, depots[i].lat, depots[i].lng, Int32(ustrip(u"m", params.search_radius)))
+        catch e
+            println(e)
+            println("Depot ",depots[i].name," (",depots[i].lat,",",depots[i].lng,") is not near a road network node!")
+            good=false
+        end
+    end
+    return good
 end
 
 
@@ -247,14 +272,20 @@ stop_times = transform(stop_times, :stop_duration => :stop_duration => x->x*u"s"
 
 #TODO: Get these from command-line args or a config file
 params = (
-  battery_cap_kwh = 200u"kW*hr", 
+  battery_cap_kwh = 200.0u"kW*hr",
   kwh_per_km      = 1.2u"kW*hr/km",
-  charging_rate   = 150u"kW"
+  charging_rate   = 150.0u"kW",
+  search_radius   = 1.0u"km"
 )
 
 #Convert stops table into dictionary for fast lookups.
 #TODO: less verbose way to do this?
 stop_ll = Dict(select(stops, :stop_id)[i] => (lat=select(stops, :lat)[i], lng=select(stops, :lng)[i]) for i in 1:length(stops))
+
+#Ensure that depots are near a node in the road network
+if ~DepotsHaveNodes(router, depots, params)
+    throw("One or more of the depots don't have road network nodes! Quitting.")
+end
 
 #Run the model
 bus_assignments = Model(trips, stop_ll, router, depots, params)
