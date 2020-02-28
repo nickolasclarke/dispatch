@@ -38,6 +38,8 @@ Keys:
 * `stop_id`:              Unique id for the stop.
 * `lat`:                  Latitude of the stop.
 * `lng`:                  Longitude of the stop.
+* `x`:                    Projected x coordinate of the stop.
+* `y`:                    Projected y coordinate of the stop.
 * `inductive_charging`:   Whether inductive charging is available at the stop
 * `nearest_charger`:      StopID if there is a nearby charger the bus can go to (mostly applicable to terminii)
 * `evse`:                 Whether there is a traditional EVSE charger
@@ -84,6 +86,7 @@ import pyproj
 import shapely as shp
 import shapely.ops
 
+from utility import *
 
 def pairwise(iterable):
   """
@@ -239,15 +242,18 @@ def GenerateStops(gtfs):
   #Change the projection of the stops
   stops = gtfs.stops.copy()
 
-  stops['geometry'] = stops['geometry'].map(ChangeProjection)
-
-  #Clean up stops data
   stops['lat'] = stops.geometry.y
   stops['lng'] = stops.geometry.x
 
+  geom = stops['geometry'].copy().map(ChangeProjection)
+
+  #Clean up stops data
+  stops['x'] = geom.x
+  stops['y'] = geom.y
+
   #Drop unneeded columns including 'wheelchair_boarding', 'stop_url', 'zone_id',
   #'stop_desc', 'location_type', 'stop_code'
-  stops = stops[['stop_id', 'stop_name', 'geometry', 'lat', 'lng']]
+  stops = stops[['stop_id', 'stop_name', 'lat', 'lng', 'x', 'y']]
 
   stops['inductive_charging'] = False # Whether there's an inductive charger
   stops['evse'] = False               # Whether there is a traditional EVSE charger
@@ -276,7 +282,7 @@ def GenerateRoadSegments(gtfs):
   all_shape_segs = [item for sublist in shapes['seg_hash'] for item in sublist]
 
   #Print count of how many times each road segment is used
-  print(collections.Counter(all_shape_segs))
+  # print(collections.Counter(all_shape_segs))
 
   #Flatten list for segments
   shape_props = [{"seg_hash": seg_hash, "charging":False} for seg_hash in set(all_shape_segs)]
@@ -310,17 +316,11 @@ date, service_ids = ptg.read_busiest_date(feed_file)
 print("Service id chosen = {0}".format(service_ids))
 
 #Load file twice so that we don't modify it within these functions
-road_segs, seg_props = GenerateRoadSegments(ptg.load_geo_feed(feed_file))
+trips      = GenerateTrips(ptg.load_geo_feed(feed_file), date, service_ids)
+stops      = GenerateStops(ptg.load_geo_feed(feed_file))
+stop_times = GenerateStopTimes(ptg.load_geo_feed(feed_file))
+# road_segs, seg_props = GenerateRoadSegments(ptg.load_geo_feed(feed_file))
 
-data = {
-  "trips":      GenerateTrips(ptg.load_geo_feed(feed_file), date, service_ids),
-  "stops":      GenerateStops(ptg.load_geo_feed(feed_file)),
-  "stop_times": GenerateStopTimes(ptg.load_geo_feed(feed_file)),
-  "road_segs":  road_segs,
-  "seg_props":  seg_props
-}
-
-#Output
-#trips.drop(columns=['trip_id']).to_csv(output_file, index=False) #TODO?
-with open(output_file, 'wb') as handle:
-  pickle.dump(data, handle, protocol=4)
+trips.to_csv(output_file+"_trips.csv", index=False)
+stops.to_csv(output_file+"_stops.csv", index=False)
+stop_times.to_csv(output_file+"_stop_times.csv", index=False)

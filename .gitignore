@@ -6,3 +6,4 @@ venv/
 .code-workspace.code-workspace
 *.so
 build/
+temp/

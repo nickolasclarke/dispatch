@@ -4,11 +4,11 @@ add_subdirectory(routingkit)
 
 install(TARGETS pyroutingkit DESTINATION bin)
 
-set(PYFILES
-  find_chargers.py optimize_bus_distribution.py osrm_server.py parse_gtfs.py sim.py
+set(SCRIPT_FILES
+  find_chargers.py optimize_bus_distribution.py osrm_server.py parse_gtfs.py sim.jl RoutingKit.jl
 )
  
-foreach(pyfile ${PYFILES})
+foreach(pyfile ${SCRIPT_FILES})
   message(STATUS "output ${CMAKE_BINARY_DIR}/bin/${pyfile}")
   ADD_CUSTOM_COMMAND(OUTPUT "${CMAKE_BINARY_DIR}/bin/${pyfile}"
     COMMAND cmake -E copy_if_different "${CMAKE_CURRENT_SOURCE_DIR}/${pyfile}"
