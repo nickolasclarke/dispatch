@@ -16,4 +16,4 @@ find_package(JlCxx)
 
 add_library(jlroutingkit SHARED rk_julia.cpp routingkit.cpp)
 target_link_libraries(jlroutingkit PRIVATE routingkit JlCxx::cxxwrap_julia)
-install(TARGETS jlroutingkit DESTINATION bin)
+install(TARGETS jlroutingkit LIBRARY DESTINATION DESTINATION bin)
