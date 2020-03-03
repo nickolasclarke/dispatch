@@ -93,8 +93,11 @@ function RunBlock(block, stop_ll, router, depots, params)
         end_depot = FindClosestDepotByTime(router, stop_ll[trip.end_stop_id], depots)
         energy_from_end_to_depot = end_depot[:dist] * params[:kwh_per_km]
 
+        #Energy left to perform this trip
+        energy_left_this_trip = prevtrip.energy_left
+
         #Do we have enough energy to complete this trip and then go to the depot?
-        if prevtrip.energy_left - trip_energy - energy_from_end_to_depot < 0u"kW*hr"
+        if energy_left_this_trip - trip_energy - energy_from_end_to_depot < 0u"kW*hr"
             #We can't complete this trip and get back to the depot, so it was better to end the block after the previous trip
             #TODO: Assert previous trip ending stop_id is same as this trip's starting stop_id
             #Get closest depot and energetics to the start of this trip (which is also the end of the previous trip)
@@ -107,13 +110,16 @@ function RunBlock(block, stop_ll, router, depots, params)
             end
 
             #Alter the previous trip to note that we ended it
-            energy_left = prevtrip.energy_left-energy_from_start_to_depot
-            charge_time = (params[:battery_cap_kwh]-energy_left)/params[:charging_rate]
+            energy_left_last_trip = prevtrip.energy_left-energy_from_start_to_depot
+            charge_time = (params[:battery_cap_kwh]-energy_left_last_trip)/params[:charging_rate]
             block[previ] = merge(block[previ], (;
-                energy_left = energy_left,
+                energy_left = energy_left_last_trip,
                 bus_busy_end = prevtrip.bus_busy_end+start_depot[:time] + charge_time,
                 depot = start_depot[:id]
             ))
+
+            #TODO: Assumes that trip from trip start to depot and from depot to trip start is the same length
+            energy_left_this_trip = params[:battery_cap_kwh]-energy_from_start_to_depot
 
             #Alter this trip so that we start it with a fresh bus
             block[tripi] = merge(block[tripi], (;
@@ -131,7 +137,7 @@ function RunBlock(block, stop_ll, router, depots, params)
         #We have enough energy to finish the trip
         block[tripi] = merge(block[tripi], (;
             bus_busy_end = trip.end_arrival_time,
-            energy_left = trip.energy_left-trip_energy
+            energy_left = energy_left_this_trip-trip_energy
         ))
 
         #This trip is now the previous trip
@@ -257,4 +263,4 @@ params = (
 stop_ll = Dict(select(stops, :stop_id)[i] => (lat=select(stops, :lat)[i], lng=select(stops, :lng)[i]) for i in 1:length(stops))
 
 #Run the model
-bus_assignments = Model(trips, stop_ll, router, depots, params)
+bus_assignments = Model(trips, stop_ll, router, depots, params);
