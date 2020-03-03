@@ -1,5 +1,5 @@
 #!/usr/bin/env julia
-# using Distributions
+using Distributions
 using JuliaDB
 using Unitful
 
