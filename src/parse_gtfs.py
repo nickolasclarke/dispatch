@@ -88,6 +88,8 @@ import shapely.ops
 
 from utility import *
 
+
+
 def pairwise(iterable):
   """
   s -> (s0,s1), (s1,s2), (s2, s3), ...
@@ -252,7 +254,7 @@ def GenerateStops(gtfs):
   stops['y'] = geom.y
 
   #Drop unneeded columns including 'wheelchair_boarding', 'stop_url', 'zone_id',
-  #'stop_desc', 'location_type', 'stop_code'
+  #'stop_desc', 'location_type', 'stop_code', 'geometry'
   stops = stops[['stop_id', 'stop_name', 'lat', 'lng', 'x', 'y']]
 
   stops['inductive_charging'] = False # Whether there's an inductive charger
