@@ -18,31 +18,17 @@ import shelve
 from multiprocessing import Pool
 from os.path import basename
 
-BASE_URL = 'https://api.transitfeeds.com/v1/'
-KEY      = 'd8243bad-de5a-47f7-8103-6d3c064d08da'
+import parse_gtfs
 
-#GTFS uses numeric identifiers to indicate what kind of vehicles serve a route.
-#The relevant bus-like identifiers for us are below.
-route_types = [
-    [3], # Standard Route Type code
 
-    [700, 701, #Extended Bus codes
-    702, 703, 
-    704, 705, 
-    706, 707, 
-    708, 709, 
-    710, 711, 
-    712, 713, 
-    714, 715, 716],
-
-    [200, 201, #Extended Coach codes
-    202, 203, 
-    204, 205, 
-    206, 207, 
-    208, 209],
-
-    [800] #Extended Trollybus codes
-]
+def clean_fid(fid):
+    '''Strip invalid characters from a feed id to turn it into a form 
+       appropriate for filenames.
+    
+    Args:
+        fid - The feed id to convert
+    '''
+    return ''.join(c for c in fid if c.isalnum())
 
 
 
@@ -87,16 +73,6 @@ class FeedFetcher:
         return self.get_feed_page(1)['results']['numPages']
 
     @classmethod
-    def clean_fid(cls, fid):
-        '''Strip invalid characters from a feed id to turn it into a form 
-           appropriate for filenames.
-        
-        Args:
-            fid - The feed id to convert
-        '''
-        return ''.join(c for c in fid if c.isalnum())
-
-    @classmethod
     def url_to_file_worker(cls, out_queue, in_queue):
         """Worker that takes work items from `out_queue`, tries to download the
         urls therein and saves them to disk, reports back on success/failure via
@@ -128,7 +104,7 @@ class FeedFetcher:
         url   = self.base_url+'getLatestFeedVersion'
         # Load work onto the queue
         for fid in feed_list:
-            outfn = self.feed_fn_template.format(feed=self.clean_fid(fid))
+            outfn = self.feed_fn_template.format(feed=clean_fid(fid))
             out_queue.put({"id":fid, "url":url, "params":{'key':self.key, 'feed':fid}, "outfn":outfn})
         while len(feed_list)>0:                        # If there's work left to do
             saved = in_queue.get(block=True)           # Wait for a message from a worker
@@ -161,8 +137,9 @@ class FeedFetcher:
 
 class FeedManager:
     """Persistently manages information about feeds and whether we have their data."""
-    def __init__(self, db_filename):
+    def __init__(self, db_filename, feed_fn_template):
         self.db = shelve.open(db_filename, writeback=True)
+        self.feed_fn_template = feed_fn_template
 
     def __del__(self):
         self.db.close()
@@ -200,102 +177,100 @@ class FeedManager:
         self.db[fid]["needs_update"] = False
         self.db.sync()
 
-    def invalidate_all(self):
+    def needs_update_all(self):
         """Indicates that all of the feeds need to have their data acquired"""
         for f in self.db:
             self.db[f]["needs_update"] = True
         self.db.sync()
 
+    def validate_feed(self, fid, parsed_prefix):
+        filename = self.feed_fn_template.format(feed=clean_fid(fid))
+        if not parse_gtfs.DoesFeedLoad(filename):
+            self.db[fid]["validation_status"] = "cannot_load"
+        elif not parse_gtfs.HasBusRoutes(filename):
+            self.db[fid]["validation_status"] = "no_buses"
+        elif not parse_gtfs.HasBlockIDs(filename):
+            self.db[fid]["validation_status"] = "no_blocks"
+
+        try:
+            parse_gtfs.ParseFile(filename, parsed_prefix.format(feed=fid))
+            self.db[fid]["validation_status"] = "good"
+        except Exception as err:
+            print(f"ERROR on '{fid}': {err}")
+            self.db[fid]["validation_status"] = "error: " + str(err)
+        self.db.sync()
+
+    def validate_feeds(self, parsed_prefix):
+        for fid in self.db:
+            if self.db[fid].get("validation_status", "not_there")!="good":
+                self.validate_feed(fid, parsed_prefix)
+
+    def invalidate_feeds(self):
+        for fid in self.db:
+            self.db[fid]["validation_status"] = "needs_validation"
+        self.db.sync()
+
+    def print_validation(self):
+        for fid in self.db:
+            print(f"{fid:<50}: ", self.db[fid].get('validation_status', "unchecked"))
 
 
-if len(sys.argv)!=3:
-    print(f"Syntax {sys.argv[0]} <Feeds DB> <Data Template Name>")
+
+def AcquireFeeds(feeds_db_filename, data_template_name):
+    ff = FeedFetcher(
+        base_url='https://api.transitfeeds.com/v1/',
+        key='d8243bad-de5a-47f7-8103-6d3c064d08da',
+        feed_fn_template=data_template_name
+    )
+
+    # Get data about all of the feeds
+    feed_data = ff.get_feed_metadata()
+
+    fm = FeedManager(db_filename=feeds_db_filename, feed_fn_template=data_template_name)
+
+    # Download feed metadata: determines if there are any new feeds or any feeds
+    # which have new data
+    fm.update(feed_data)
+
+    # Get updated data for those feeds which need it
+    ff.get_feeds_data(fm.feeds_to_update(), fm.updated)
+
+
+
+def ValidateFeeds(feeds_db_filename, data_template_name, parsed_prefix):
+    fm = FeedManager(db_filename=feeds_db_filename, feed_fn_template=data_template_name)
+    fm.validate_feeds(parsed_prefix)
+
+
+
+def ShowValidation(feeds_db_filename, data_template_name):
+    fm = FeedManager(db_filename=feeds_db_filename, feed_fn_template=data_template_name)
+    fm.print_validation()
+
+
+
+if len(sys.argv)<4:
+    print(f"Syntax {sys.argv[0]} <Command> <Feeds DB> <Data Template Name> [Parsed Prefix]")
+    print("Command can be 'acquire' or 'validate' or 'show_validation'")
     print("Data Template Name should be like: 'data_dir/gtfs_{feed}.zip'")
+    print("Parsed Prefix should be like: 'parsed_dir/{feed}'")
+    print("[Parsed Prefix] is only needed for 'validate'")
     sys.exit(-1)
 
-feeds_db_filename  = sys.argv[1]
-data_template_name = sys.argv[2]
+command            = sys.argv[1]
+feeds_db_filename  = sys.argv[2]
+data_template_name = sys.argv[3] 
+parsed_prefix      = sys.argv[4] if len(sys.argv)==5 else None
 
-ff = FeedFetcher(
-    base_url='https://api.transitfeeds.com/v1/',
-    key='d8243bad-de5a-47f7-8103-6d3c064d08da',
-    feed_fn_template=data_template_name
-)
-
-# Get data about all of the feeds
-feed_data = ff.get_feed_metadata()
-
-fm = FeedManager(db_filename=feeds_db_filename)
-
-# Download feed metadata: determines if there are any new feeds or any feeds
-# which have new data
-fm.update(feed_data)
-
-# Get updated data for those feeds which need it
-ff.get_feeds_data(fm.feeds_to_update(), fm.updated)
-
-
-
-#TODO: Validate feeds
-
-"""
-
-
-def validate_feed(path):
-    try:
-        feed = ptg.load_feed(path)
-    except Exception as err:
-        unload_path = shutil.move(path, '../data/feeds/unloadable/')
-        print(f'Cannot load GTFS feed: {path}', err)
-        return unload_path
-    try:
-        assert feed.routes.route_type.isin(itertools.chain(*route_types)).any()
-        succ_path = shutil.move(path, '../data/feeds/success/')
-    except Exception as err:
-        nobus_path = shutil.move(path, '../data/feeds/no_bus/')
-        print(f'no Bus/Coach route_types found in feed: {path}', err)
-        return nobus_path
-    try: 
-        assert feed.trips.columns.isin(['block_id']).any()
-        block_path = shutil.move(succ_path, '../data/feeds/success/includes_block/') #TODO how to use relative paths?
-    except AttributeError as err:
-        print(f'no block_id found in the feed: {path}', err) #TODO this logic is never used now that I use .isin().any() for checking block_id. How to re-introduce?
-    except Exception as err:
-         print(f'Unexpected error in validating feed: {path}', err)
-
-
-def parse_feed(path):
-    feed_name = basename(path).split('.')[0]
-    print(f'parsing {feed_name}')
-    try:
-        a = subprocess.check_output(['python',
-                                     'parse_gtfs.py',
-                                     path,
-                                     feed_name,
-                                    ], stderr=subprocess.STDOUT)
-        shutil.move(path, '../data/feeds/success/includes_block/parsed/') #TODO this does not appear to be working
-        return({'name':str(f'{feed_name}'),'error': 'NaN'})
-    except subprocess.CalledProcessError as cpe:
-        print(cpe.output)
-        return({'name':str(f'{feed_name}'),'error':cpe.output})
-    except Exception as err:
-        print('Unexpected error:', err)
-
-if len(sys.argv)!=3:
-    print(f"Syntax: {sys.argv[0]} <Feeds Database> <Data Directory>")
+if command=="acquire":
+    AcquireFeeds(feeds_db_filename, data_template_name)
+elif command=="validate":
+    if parsed_prefix is None:
+        print("Need a [Parsed Prefix]!")
+        sys.exit(-1)
+    ValidateFeeds(feeds_db_filename, data_template_name, parsed_prefix)
+elif command=="show_validation":
+    ShowValidation(feeds_db_filename, data_template_name)
+else:
+    print("Unrecognized command!")
     sys.exit(-1)
-
-
-[validate_feed(row) for row in glob.glob('../data/feeds/*.zip')] #TODO parallel this
-parsed_results = parse_p.map(parse_feed, glob.glob('../data/feeds/*.zip'))
-
-# parsed_results = [parse_feed(path) for path in glob.glob( #TODO parallel this
-#                  '../data/feeds/success/includes_block/*.zip'
-#                  )]
-
-with open('validation_results.csv', 'w') as csv_file:
-    dict_writer = csv.DictWriter(csv_file, parsed_results[0].keys())
-    dict_writer.writeheader()
-    dict_writer.writerows(parsed_results)
-
-"""

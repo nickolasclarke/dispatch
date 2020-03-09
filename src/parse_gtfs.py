@@ -302,7 +302,12 @@ def GenerateStopTimes(gtfs):
 
 
 def DoesFeedLoad(gtfs):
-  feed = ptg.load_feed(gtfs)
+  try:
+    feed = ptg.load_feed(gtfs)
+    return True
+  except Exception as e:
+    print(e)
+    return False
 
 
 
@@ -330,27 +335,27 @@ def HasBusRoutes(gtfs):
       [800] #Extended Trollybus codes
   ]
   feed = ptg.load_feed(gtfs)
-  assert feed.routes.route_type.isin(itertools.chain(*route_types)).any()
+  return feed.routes.route_type.isin(itertools.chain(*route_types)).any()
 
 
 
 def HasBlockIDs(gtfs):
   feed = ptg.load_feed(gtfs)
-  assert feed.trips.columns.isin(['block_id']).any()
+  return feed.trips.columns.isin(['block_id']).any()
 
 
 
 def ParseFile(gtfs_filename, output_prefix):
   # find the busiest date
-  date, service_ids = ptg.read_busiest_date(feed_file)
+  date, service_ids = ptg.read_busiest_date(gtfs_filename)
 
   print("Service id chosen = {0}".format(service_ids))
 
   #Load file twice so that we don't modify it within these functions
-  trips      = GenerateTrips(ptg.load_geo_feed(feed_file), date, service_ids)
-  stops      = GenerateStops(ptg.load_geo_feed(feed_file))
-  stop_times = GenerateStopTimes(ptg.load_geo_feed(feed_file))
-  # road_segs, seg_props = GenerateRoadSegments(ptg.load_geo_feed(feed_file))
+  trips      = GenerateTrips(ptg.load_geo_feed(gtfs_filename), date, service_ids)
+  stops      = GenerateStops(ptg.load_geo_feed(gtfs_filename))
+  stop_times = GenerateStopTimes(ptg.load_geo_feed(gtfs_filename))
+  # road_segs, seg_props = GenerateRoadSegments(ptg.load_geo_feed(gtfs_filename))
 
   trips.to_csv(output_prefix+"_trips.csv", index=False)
   stops.to_csv(output_prefix+"_stops.csv", index=False)
