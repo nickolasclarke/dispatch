@@ -135,7 +135,8 @@ def GetGeoDistanceFromLineString(line_string):
 
 def MatchColumn(df, colname):
   """Turns start_x and end_x into x while ensuring they were the same"""
-  assert (df['start_'+colname]==df['end_'+colname]).all()
+  if not (df['start_'+colname]==df['end_'+colname]).all():
+    raise Exception("Could not match start and end columns!")
   df = df.drop(columns=['end_'+colname])
   df = df.rename(index=str, columns={'start_'+colname: colname})
   return df
