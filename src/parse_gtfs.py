@@ -260,6 +260,7 @@ def GenerateTrips(gtfs, date, service_ids):
 
   #Ensure that start and end values are the same and reduce them to a single
   #column
+  # if not (f'start_{colname}' in trips.columns and 
   trips = MatchColumn(trips,'shape_id')
   trips = MatchColumn(trips,'block_id')
   trips = MatchColumn(trips,'trip_headsign')
