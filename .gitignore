@@ -8,6 +8,8 @@ venv/
 build/
 temp/
 __pycache__/
+src/includes_block
+.python-version
 
 #Virtual environment directory
 env/
