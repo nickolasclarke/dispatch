@@ -1,0 +1,5 @@
+[deps]
+CxxWrap = "1f15a43c-97ca-5a2a-ae31-89f07a497df4"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+JuliaDB = "a93385a2-3734-596a-9a66-3cfbb77141e6"
+Unitful = "1986cc42-f94f-5a68-af5c-568840ba703d"
