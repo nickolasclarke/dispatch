@@ -191,14 +191,14 @@ class FeedManager:
             self.db[fid]["validation_status"] = "no_buses"
         elif not parse_gtfs.HasBlockIDs(filename):
             self.db[fid]["validation_status"] = "no_blocks"
-
-        try:
-            parse_gtfs.ParseFile(filename, parsed_prefix.format(feed=fid))
-            self.db[fid]["validation_status"] = "good"
-        except Exception as err:
-            print(f"ERROR on '{fid}': {err}")
-            self.db[fid]["validation_status"] = "error: " + str(err)
-        self.db.sync()
+        else:
+            try:
+                parse_gtfs.ParseFile(filename, parsed_prefix.format(feed=clean_fid(fid)))
+                self.db[fid]["validation_status"] = "good"
+            except Exception as err:
+                print(f"ERROR on '{fid}': {err}")
+                self.db[fid]["validation_status"] = "error: " + str(err)
+            self.db.sync()
 
     def validate_feeds(self, parsed_prefix):
         for fid in self.db:
