@@ -5,10 +5,9 @@ A [discrete-event simulation (DES)](https://en.wikipedia.org/wiki/Discrete-event
 Installation/Compilation
 ===========================
 Prerequisites:
-  - Python 3.x, see requirements.txt for py package requirements
-  - Julia 1.x, see Project.toml for  for julia package requirements
+  - Python 3.x, see requirements.txt for python package requirements
+  - Julia 1.x, see Project.toml for Julia package requirements
   - Cmake
-  - Ninja
   - An API key from [OpenMobilityData](https://transitfeeds.com/api/keys)
 
 Clone the repo with all neccessary submodules
@@ -28,9 +27,9 @@ Now build with the following
 
     mkdir build
     cd build
-    cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=`pwd` ..
-    ninja
-    ninja install
+    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=`pwd` ..
+    make
+    make install
 
 
 Data Flow, Data Structures
