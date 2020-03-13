@@ -202,7 +202,7 @@ class FeedManager:
 
     def validate_feeds(self, parsed_prefix):
         for fid in self.db:
-            if self.db[fid].get("validation_status", "not_there")!="good":
+            if self.db[fid].get("validation_status", "unchecked")=="unchecked":
                 self.validate_feed(fid, parsed_prefix)
 
     def invalidate_feeds(self):
