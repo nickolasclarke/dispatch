@@ -1,16 +1,35 @@
 # Dispatch
 
-A Salabim-based model for simulating deployment of EV bus fleets, using GTFS data
+A [discrete-event simulation (DES)](https://en.wikipedia.org/wiki/Discrete-event_simulation) model for simulating deployment of EV bus fleets, using GTFS data
 
 Installation/Compilation
 ===========================
+Prerequisites:
+  - Python 3.x, see requirements.txt for python package requirements
+  - Julia 1.x, see Project.toml for Julia package requirements
+  - Cmake
+  - An API key from [OpenMobilityData](https://transitfeeds.com/api/keys)
+
+Clone the repo with all neccessary submodules
+
+    git clone --recurse-submodules git@github.com:nickolasclarke/dispatch.git
+
+Set up a Python environment if you wish, and install required python packages
+
+    pip install -r requirements.txt
+
+Set up Julia env and install required julia packages. In Julia's `Pkg` manager
+
+    activate .
+    instantiate
+
+Now build with the following
 
     mkdir build
     cd build
-    cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=`pwd` ..
-    ninja
-    ninja install
-
+    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=`pwd` ..
+    make
+    make install
 
 
 Data Flow, Data Structures
@@ -68,29 +87,16 @@ parse the GTFS data into the following format:
 ## `seg_props`
 
 
-
-
-
-Data Flow, Data Structures
-===========================
-
-1. `parse_gtfs.py`
----------------------------
-
-`parse_gtfs.py` reads a GTFS file and converts it into an internal data
-structure that can be read and understood by the project.
-
-
-
 Example Usage
 ===========================
 
+    ./src/pull_gtfs.py  show_validate data/feeds.db data/gtfs_{feed}.zip temp/{feed}
     ./parse_gtfs.py data/gtfs_minneapolis.zip msp3.pickle
     ./find_chargers.py msp3.pickle
-    ./sim.py msp3.pickle
+    ./sim.jl <Parsed GTFS Output Prefix> <OSM Data> <Depots Filename> <Model Output Filename>
 
 Data Acquisition
 ===========================
 
-Acquire GTFS transit feed data from "https://transitfeeds.com".
-
+- GTFS transit feed data acquired from [OpenMobilityData](https://transitfeeds.com)
+- OSM data for all validated feeds acquired from ?
