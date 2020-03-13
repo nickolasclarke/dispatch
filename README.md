@@ -99,4 +99,4 @@ Data Acquisition
 ===========================
 
 - GTFS transit feed data acquired from [OpenMobilityData](https://transitfeeds.com)
-- OSM DAta for all validated feeds acquired from ?
+- OSM data for all validated feeds acquired from ?
