@@ -176,7 +176,6 @@ def GenerateTrips(gtfs, date, service_ids):
   """TODO:
   """
   # filter for bus routes only
-  #TODO: Expand to larger set of route types
   bus_routes = gtfs.routes[gtfs.routes.route_type.isin(route_types)]['route_id']
   trips      = gtfs.trips[gtfs.trips.route_id.isin(bus_routes)]
 

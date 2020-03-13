@@ -184,21 +184,22 @@ class FeedManager:
         self.db.sync()
 
     def validate_feed(self, fid, parsed_prefix):
+        print(f"Validating '{fid}'...")
         filename = self.feed_fn_template.format(feed=clean_fid(fid))
-        if not parse_gtfs.DoesFeedLoad(filename):
-            self.db[fid]["validation_status"] = "cannot_load"
-        elif not parse_gtfs.HasBusRoutes(filename):
-            self.db[fid]["validation_status"] = "no_buses"
-        elif not parse_gtfs.HasBlockIDs(filename):
-            self.db[fid]["validation_status"] = "no_blocks"
-        else:
-            try:
+        try:
+            if not parse_gtfs.DoesFeedLoad(filename):
+                self.db[fid]["validation_status"] = "cannot_load"
+            elif not parse_gtfs.HasBusRoutes(filename):
+                self.db[fid]["validation_status"] = "no_buses"
+            elif not parse_gtfs.HasBlockIDs(filename):
+                self.db[fid]["validation_status"] = "no_blocks"
+            else:
                 parse_gtfs.ParseFile(filename, parsed_prefix.format(feed=clean_fid(fid)))
                 self.db[fid]["validation_status"] = "good"
-            except Exception as err:
-                print(f"ERROR on '{fid}': {err}")
-                self.db[fid]["validation_status"] = "error: " + str(err)
-            self.db.sync()
+        except Exception as err:
+            print(f"ERROR on '{fid}': {err}")
+            self.db[fid]["validation_status"] = "error: " + str(err)
+        self.db.sync()
 
     def validate_feeds(self, parsed_prefix):
         for fid in self.db:
