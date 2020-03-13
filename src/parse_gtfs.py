@@ -87,6 +87,32 @@ import shapely as shp
 import shapely.ops
 
 
+
+#GTFS uses numeric identifiers to indicate what kind of vehicles serve a route.
+#The relevant bus-like identifiers for us are below.
+route_types = itertools.chain([
+  [3], # Standard Route Type code
+
+  [700, 701, #Extended Bus codes
+  702, 703, 
+  704, 705, 
+  706, 707, 
+  708, 709, 
+  710, 711, 
+  712, 713, 
+  714, 715, 716],
+
+  [200, 201, #Extended Coach codes
+  202, 203, 
+  204, 205, 
+  206, 207, 
+  208, 209],
+
+  [800] #Extended Trollybus codes
+])
+
+
+
 def pairwise(iterable):
   """
   s -> (s0,s1), (s1,s2), (s2, s3), ...
@@ -151,7 +177,7 @@ def GenerateTrips(gtfs, date, service_ids):
   """
   # filter for bus routes only
   #TODO: Expand to larger set of route types
-  bus_routes = gtfs.routes[gtfs.routes['route_type'] == 3]['route_id']
+  bus_routes = gtfs.routes[gtfs.routes.route_type.isin(route_types)]['route_id']
   trips      = gtfs.trips[gtfs.trips.route_id.isin(bus_routes)]
 
   #Select the service ids from that date. Note that trip_ids are still unique
@@ -332,31 +358,10 @@ def DoesFeedLoad(gtfs):
 
 
 
-def HasBusRoutes(gtfs):
-  #GTFS uses numeric identifiers to indicate what kind of vehicles serve a route.
-  #The relevant bus-like identifiers for us are below.
-  route_types = [
-      [3], # Standard Route Type code
-
-      [700, 701, #Extended Bus codes
-      702, 703, 
-      704, 705, 
-      706, 707, 
-      708, 709, 
-      710, 711, 
-      712, 713, 
-      714, 715, 716],
-
-      [200, 201, #Extended Coach codes
-      202, 203, 
-      204, 205, 
-      206, 207, 
-      208, 209],
-
-      [800] #Extended Trollybus codes
-  ]
-  feed = ptg.load_feed(gtfs)
-  return feed.routes.route_type.isin(itertools.chain(*route_types)).any()
+def HasBusRoutes(gtfs_filename):
+  #Check to see if the feed contains any buses
+  feed = ptg.load_feed(gtfs_filename)
+  return feed.routes.route_type.isin(route_types).any()
 
 
 
