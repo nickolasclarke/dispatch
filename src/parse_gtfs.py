@@ -90,7 +90,7 @@ import shapely.ops
 
 #GTFS uses numeric identifiers to indicate what kind of vehicles serve a route.
 #The relevant bus-like identifiers for us are below.
-route_types = itertools.chain([
+route_types = list(itertools.chain.from_iterable([
   [3], # Standard Route Type code
 
   [700, 701, #Extended Bus codes
@@ -109,7 +109,7 @@ route_types = itertools.chain([
   208, 209],
 
   [800] #Extended Trollybus codes
-])
+]))
 
 
 
