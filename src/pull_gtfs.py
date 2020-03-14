@@ -184,18 +184,22 @@ class FeedManager:
         self.db.sync()
 
     def validate_feed(self, fid, parsed_prefix):
-        print(f"Validating '{fid}'...")
+        print(f"Validating '{fid}'... ", end='')
         filename = self.feed_fn_template.format(feed=clean_fid(fid))
         try:
             if not parse_gtfs.DoesFeedLoad(filename):
                 self.db[fid]["validation_status"] = "cannot_load"
+                print("cannot load")
             elif not parse_gtfs.HasBusRoutes(filename):
                 self.db[fid]["validation_status"] = "no_buses"
+                print("no buses")
             elif not parse_gtfs.HasBlockIDs(filename):
                 self.db[fid]["validation_status"] = "no_blocks"
+                print("no blocks")
             else:
                 parse_gtfs.ParseFile(filename, parsed_prefix.format(feed=clean_fid(fid)))
                 self.db[fid]["validation_status"] = "good"
+                print("good")
         except Exception as err:
             print(f"ERROR on '{fid}': {err}")
             self.db[fid]["validation_status"] = "error: " + str(err)
@@ -208,7 +212,7 @@ class FeedManager:
 
     def invalidate_feeds(self):
         for fid in self.db:
-            self.db[fid]["validation_status"] = "needs_validation"
+            self.db[fid]["validation_status"] = "unchecked"
         self.db.sync()
 
     def print_validation(self):
@@ -244,13 +248,19 @@ def ValidateFeeds(feeds_db_filename, data_template_name, parsed_prefix):
 
 
 
+def InvalidateFeeds(feeds_db_filename, data_template_name):
+    fm = FeedManager(db_filename=feeds_db_filename, feed_fn_template=data_template_name)
+    fm.invalidate_feeds()
+
+
+
 def ShowValidation(feeds_db_filename, data_template_name):
     fm = FeedManager(db_filename=feeds_db_filename, feed_fn_template=data_template_name)
     fm.print_validation()
 
 
 
-if len(sys.argv)<4:
+def help():
     print(f"Syntax {sys.argv[0]} <Command> <Feeds DB> <Data Template Name> [Parsed Prefix]")
     print("Command can be 'acquire' or 'validate' or 'show_validation'")
     print("Data Template Name should be like: 'data_dir/gtfs_{feed}.zip'")
@@ -258,20 +268,26 @@ if len(sys.argv)<4:
     print("[Parsed Prefix] is only needed for 'validate'")
     sys.exit(-1)
 
-command            = sys.argv[1]
-feeds_db_filename  = sys.argv[2]
-data_template_name = sys.argv[3] 
-parsed_prefix      = sys.argv[4] if len(sys.argv)==5 else None
-
-if command=="acquire":
+command = sys.argv[1] if len(sys.argv)>=2 else "help"
+if command=="help":
+    help()
+elif command=="acquire":
+    feeds_db_filename  = sys.argv[2]
+    data_template_name = sys.argv[3] 
     AcquireFeeds(feeds_db_filename, data_template_name)
 elif command=="validate":
-    if parsed_prefix is None:
-        print("Need a [Parsed Prefix]!")
-        sys.exit(-1)
+    feeds_db_filename  = sys.argv[2]
+    data_template_name = sys.argv[3] 
+    parsed_prefix      = sys.argv[4]
     ValidateFeeds(feeds_db_filename, data_template_name, parsed_prefix)
 elif command=="show_validation":
+    feeds_db_filename  = sys.argv[2]
+    data_template_name = sys.argv[3]
     ShowValidation(feeds_db_filename, data_template_name)
+elif command=="invalidate":
+    feeds_db_filename  = sys.argv[2]
+    data_template_name = sys.argv[3] 
+    InvalidateFeeds(feeds_db_filename, data_template_name)
 else:
     print("Unrecognized command!")
     sys.exit(-1)
