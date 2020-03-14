@@ -179,7 +179,7 @@ class FeedManager:
 
     def needs_update_all(self):
         """Indicates that all of the feeds need to have their data acquired"""
-        for f in self.db:
+        for f in sorted(self.db):
             self.db[f]["needs_update"] = True
         self.db.sync()
 
@@ -206,17 +206,17 @@ class FeedManager:
         self.db.sync()
 
     def validate_feeds(self, parsed_prefix):
-        for fid in self.db:
+        for fid in sorted(self.db):
             if self.db[fid].get("validation_status", "unchecked")=="unchecked":
                 self.validate_feed(fid, parsed_prefix)
 
     def invalidate_feeds(self):
-        for fid in self.db:
+        for fid in sorted(self.db):
             self.db[fid]["validation_status"] = "unchecked"
         self.db.sync()
 
     def print_validation(self):
-        for fid in self.db:
+        for fid in sorted(self.db):
             print(f"{fid:<50}: ", self.db[fid].get('validation_status', "unchecked"))
 
 
