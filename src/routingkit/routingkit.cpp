@@ -2,7 +2,6 @@
 #include <routingkit/contraction_hierarchy.h>
 #include <routingkit/geo_position_to_node.h>
 #include <routingkit/inverse_vector.h>
-#include <iostream>
 #include <limits>
 #include <stdexcept>
 #include <string>
@@ -47,13 +46,13 @@ std::vector<double> Router::getTravelTime(const double from_lat, const double fr
   unsigned to;
 
   try {
-    const auto from = getNearestNode(from_lat, from_lon, search_radius_m);
+    from = getNearestNode(from_lat, from_lon, search_radius_m);
   } catch (const std::exception &) {
     throw std::runtime_error("No node near start position!");
   }
 
   try {
-    const auto to = getNearestNode(to_lat, to_lon, search_radius_m);
+    to = getNearestNode(to_lat, to_lon, search_radius_m);
   } catch (const std::exception &) {
     throw std::runtime_error("No node near target position!");
   }
