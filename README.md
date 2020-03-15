@@ -90,10 +90,26 @@ parse the GTFS data into the following format:
 Example Usage
 ===========================
 
-    ./src/pull_gtfs.py  show_validate data/feeds.db data/gtfs_{feed}.zip temp/{feed}
-    ./parse_gtfs.py data/gtfs_minneapolis.zip msp3.pickle
-    ./find_chargers.py msp3.pickle
-    ./sim.jl <Parsed GTFS Output Prefix> <OSM Data> <Depots Filename> <Model Output Filename>
+```bash
+#Acquire data
+./src/pull_gtfs.py acquire data/feeds.db data/gtfs_{feed}.zip
+
+#Validate data and create inputs for model
+./src/pull_gtfs.py validate data/feeds.db data/gtfs_{feed}.zip temp/{feed}
+
+#Check validation status
+./src/pull_gtfs.py show_validation data/feeds.db data/gtfs_{feed}.zip temp/{feed}
+
+#Run model on a dataset
+julia ./sim.jl ../../temp/minneapolis ../../data/minneapolis-saint-paul_minnesota.osm.pbf ../../data/depots_minneapolis.csv /z/out
+
+#Create inputs for a particular dataset
+./parse_gtfs.py data/gtfs_minneapolis.zip msp3.pickle
+
+#Identify possible places to put chargers
+#./find_chargers.py msp3.pickle
+```
+
 
 Data Acquisition
 ===========================
