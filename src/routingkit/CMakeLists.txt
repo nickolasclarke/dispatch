@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.13)
 
+if(MSVC)
+  add_compile_options(/W4 /WX)
+else()
+  add_compile_options(-Wall -Wextra -pedantic -Werror)
+endif()
+
 #Use the default Julia to find the CxxWrap path
 if(NOT DEFINED JL_CXX_WRAP_PATH)
   execute_process(COMMAND julia "-e" "using CxxWrap; print(CxxWrap.CxxWrapCore.prefix_path())"
