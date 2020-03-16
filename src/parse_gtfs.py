@@ -183,12 +183,15 @@ def GenerateTrips(gtfs, date, service_ids):
   #because they include service_ids as a substring (TODO: Is this universal?)
   trips = gtfs.trips[gtfs.trips.service_id.isin(service_ids)]
 
-  #Change the projection of the stops
-  gtfs.stops['geometry'] = gtfs.stops['geometry'].map(ChangeProjection)
-
   #Clean up stops data
   gtfs.stops['lat'] = gtfs.stops.geometry.y
   gtfs.stops['lng'] = gtfs.stops.geometry.x
+
+  #Change the projection of the stops
+  gtfs.stops['geometry'] = gtfs.stops['geometry'].map(ChangeProjection)
+
+  gtfs.stops['x'] = gtfs.stops.geometry.x
+  gtfs.stops['y'] = gtfs.stops.geometry.y
 
   #Combine trips with stop data
   trips = trips.merge(gtfs.stop_times, left_on='trip_id', right_on='trip_id')
@@ -240,8 +243,8 @@ def GenerateTrips(gtfs, date, service_ids):
   first_stops = trips.groupby(by='trip_id').first().reset_index()
   last_stops  = trips.groupby(by='trip_id').last().reset_index()
 
-  first_stops = first_stops.merge(gtfs.stops[['stop_id','lat','lng']], how='left', on='stop_id')
-  last_stops  = last_stops.merge (gtfs.stops[['stop_id','lat','lng']], how='left', on='stop_id')
+  first_stops = first_stops.merge(gtfs.stops[['stop_id','lat','lng','x','y']], how='left', on='stop_id')
+  last_stops  = last_stops.merge (gtfs.stops[['stop_id','lat','lng','x','y']], how='left', on='stop_id')
 
   trips = first_stops.merge(last_stops, on="trip_id")
 
