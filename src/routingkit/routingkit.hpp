@@ -12,6 +12,9 @@ class Router {
 
  public:
   Router(const std::string &pbf_filename);
+  Router(const std::string &pbf_filename, const std::string &ch_filename);
+
+  void save_ch(const std::string &filename);
 
   //Return the id of the nearest node to a lat,lon point
   unsigned getNearestNode(const double lat, const double lon, const int search_radius_m) const;
