@@ -207,3 +207,21 @@ cd build
 CXX=g++ CC=gcc cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=`pwd` ..
 make -j 20
 ```
+
+
+
+
+Global Road Network
+===========================
+
+Acquire a planet.osm file
+-------------------------
+
+See directions [here](https://wiki.openstreetmap.org/wiki/Downloading_data) and
+downloads [here](https://planet.openstreetmap.org/).
+
+An extract of the road data may be available [here](https://download.osmdata.xyz/) at [this address](http://download.osmdata.xyz/data/highway_EPSG4326.zip).
+
+
+
+https://free.nchc.org.tw/osm.planet/pbf/planet-latest.osm.pbf
