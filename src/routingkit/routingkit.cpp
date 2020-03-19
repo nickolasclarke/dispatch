@@ -31,6 +31,25 @@ Router::Router(const std::string &pbf_filename){
 
 
 
+Router::Router(const std::string &pbf_filename, const std::string &ch_filename){
+  // Load a car routing graph from OpenStreetMap-based data
+  graph = rk::simple_load_osm_car_routing_graph_from_pbf(pbf_filename);
+  auto tail = rk::invert_inverse_vector(graph.first_out);
+
+  // Load the shortest path index
+  ch = rk::ContractionHierarchy::load_file(ch_filename);
+
+  map_geo_position = rk::GeoPositionToNode(graph.latitude, graph.longitude);
+}
+
+
+
+void Router::save_ch(const std::string &filename) {
+  ch.save_file(filename);
+}
+
+
+
 unsigned Router::getNearestNode(const double lat, const double lon, const int search_radius_m) const {
   const auto id = map_geo_position.find_nearest_neighbor_within_radius(lat, lon, search_radius_m).id;
   if(id==rk::invalid_id)
