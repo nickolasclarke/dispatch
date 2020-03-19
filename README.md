@@ -220,8 +220,33 @@ Acquire a planet.osm file
 See directions [here](https://wiki.openstreetmap.org/wiki/Downloading_data) and
 downloads [here](https://planet.openstreetmap.org/).
 
-An extract of the road data may be available [here](https://download.osmdata.xyz/) at [this address](http://download.osmdata.xyz/data/highway_EPSG4326.zip).
+We got our data from [this link](https://free.nchc.org.tw/osm.planet/pbf/planet-latest.osm.pbf).
+
+Extract roads from file
+-------------------------
+
+First, install OSM tools:
+
+```bash
+sudo apt install osmosis
+```
+
+Now, extract the roads:
+```bash
+osmosis --read-pbf planet-latest.osm.pbf --tf accept-ways highway=* --used-node --write-pbf planet-highways.osm.pbf
+```
 
 
+Test Julia Routing
+=========================
 
-https://free.nchc.org.tw/osm.planet/pbf/planet-latest.osm.pbf
+```julia
+include("RoutingKit.jl")
+
+router = RoutingKit.Router("/z/msp-highways.osm.pbf", "/z/msp.ch")
+
+brooklyn_park = (lat=45.115208, lng=-93.373463)
+south_st_paul = (lat=44.892850, lng=-93.051079)
+
+time_dist = RoutingKit.getTravelTime(router, brooklyn_park.lat, brooklyn_park.lng, south_st_paul.lat, south_st_paul.lng, 3000)
+```
