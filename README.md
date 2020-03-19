@@ -214,6 +214,7 @@ make -j 20
 Global Road Network
 ===========================
 
+<<<<<<< HEAD
 Acquire a planet.osm file
 -------------------------
 
@@ -250,3 +251,22 @@ south_st_paul = (lat=44.892850, lng=-93.051079)
 
 time_dist = RoutingKit.getTravelTime(router, brooklyn_park.lat, brooklyn_park.lng, south_st_paul.lat, south_st_paul.lng, 3000)
 ```
+
+
+
+
+
+Global Road Network
+===========================
+
+Acquire a planet.osm file
+-------------------------
+
+See directions [here](https://wiki.openstreetmap.org/wiki/Downloading_data) and
+downloads [here](https://planet.openstreetmap.org/).
+
+An extract of the road data may be available [here](https://download.osmdata.xyz/) at [this address](http://download.osmdata.xyz/data/highway_EPSG4326.zip).
+
+
+
+https://free.nchc.org.tw/osm.planet/pbf/planet-latest.osm.pbf
