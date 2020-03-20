@@ -238,6 +238,21 @@ osmosis --read-pbf planet-latest.osm.pbf --tf accept-ways highway=* --used-node 
 ```
 
 
+Mar 20, 2020 6:46:39 AM org.openstreetmap.osmosis.core.Osmosis run
+INFO: Pipeline complete.
+Mar 20, 2020 6:46:39 AM org.openstreetmap.osmosis.core.Osmosis run
+INFO: Total execution time: 29447229 milliseconds.
+
+real    490m47.583s
+user    515m8.290s
+sys     6m48.157s
+
+43M     dispatch
+17G     planet-highways.osm.pbf
+50G     planet-latest.osm.pbf
+67G     total
+
+
 Test Julia Routing
 =========================
 
