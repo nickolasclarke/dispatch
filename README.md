@@ -227,30 +227,23 @@ Extract roads from file
 -------------------------
 
 First, install OSM tools:
-
 ```bash
 sudo apt install osmosis
 ```
-
 Now, extract the roads:
 ```bash
 osmosis --read-pbf planet-latest.osm.pbf --tf accept-ways highway=* --used-node --write-pbf planet-highways.osm.pbf
 ```
+Running Osmosis on the global dataset will take a while. On our 32 core, 192 GB
+RAM, SSD machine it took 8 hours 10 minutes.
 
+Next, build the contraction hierarchy:
+```bash
+./routing_preprocess planet-highways.osm.pbf planet-highways.ch
+```
+Unfortunately, our timer didn't work for this process, but it will take 12-45
+hours and require 80+GB of RAM.
 
-Mar 20, 2020 6:46:39 AM org.openstreetmap.osmosis.core.Osmosis run
-INFO: Pipeline complete.
-Mar 20, 2020 6:46:39 AM org.openstreetmap.osmosis.core.Osmosis run
-INFO: Total execution time: 29447229 milliseconds.
-
-real    490m47.583s
-user    515m8.290s
-sys     6m48.157s
-
-43M     dispatch
-17G     planet-highways.osm.pbf
-50G     planet-latest.osm.pbf
-67G     total
 
 
 Test Julia Routing
