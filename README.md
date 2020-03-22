@@ -221,7 +221,7 @@ Acquire a planet.osm file
 See directions [here](https://wiki.openstreetmap.org/wiki/Downloading_data) and
 downloads [here](https://planet.openstreetmap.org/).
 
-We got our data from [this link](https://free.nchc.org.tw/osm.planet/pbf/planet-latest.osm.pbf).
+We got our data from [this link](https://free.nchc.org.tw/osm.planet/pbf/planet-latest.osm.pbf). The file was 50GB.
 
 Extract roads from file
 -------------------------
@@ -235,14 +235,14 @@ Now, extract the roads:
 osmosis --read-pbf planet-latest.osm.pbf --tf accept-ways highway=* --used-node --write-pbf planet-highways.osm.pbf
 ```
 Running Osmosis on the global dataset will take a while. On our 32 core, 192 GB
-RAM, SSD machine it took 8 hours 10 minutes.
+RAM, SSD machine it took 8 hours 10 minutes. The resulting file `planet-highways.osm.pbf` was 17GB.
 
 Next, build the contraction hierarchy:
 ```bash
 ./routing_preprocess planet-highways.osm.pbf planet-highways.ch
 ```
 Unfortunately, our timer didn't work for this process, but it will take 12-45
-hours and require 80+GB of RAM.
+hours and require 80+GB of RAM. The resulting file `planet-highways.ch` was 15GB.
 
 
 
