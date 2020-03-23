@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
 
-message(STATUS CMAKE_MODULE_PATH)
-
 find_package(Osmium REQUIRED COMPONENTS pbf)
 find_package(Threads REQUIRED)
 find_package(ZLIB REQUIRED)
@@ -18,3 +16,5 @@ add_executable(osm_splitter osm_splitter.cpp)
 install(TARGETS osm_splitter RUNTIME DESTINATION DESTINATION bin)
 target_include_directories(osm_splitter PRIVATE ${OSMIUM_INCLUDE_DIRS})
 target_link_libraries(osm_splitter PRIVATE Threads::Threads ZLIB::ZLIB BZip2::BZip2 EXPAT::EXPAT)
+
+install(TARGETS routing_preprocess RUNTIME DESTINATION DESTINATION bin)
