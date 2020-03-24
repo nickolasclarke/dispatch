@@ -224,7 +224,10 @@ class FeedManager:
             if self.db[fid].get('extents', None) is not None:
                 continue
             filename = self.feed_fn_template.format(feed=clean_fid(fid))
-            extents  = parse_gtfs.GetExtents(filename)
+            try:
+                extents  = parse_gtfs.GetExtents(filename)
+            except Exception as err:
+                extents = f"error: {err}"
             self.db[fid]['extents'] = extents
             self.db.sync()
             print(f"{fid} {extents}")
