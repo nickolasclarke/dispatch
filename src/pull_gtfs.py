@@ -22,9 +22,9 @@ import parse_gtfs
 
 
 def clean_fid(fid):
-    '''Strip invalid characters from a feed id to turn it into a form 
+    '''Strip invalid characters from a feed id to turn it into a form
        appropriate for filenames.
-    
+
     Args:
         fid - The feed id to convert
     '''
@@ -48,14 +48,14 @@ class FeedFetcher:
 
     def get_feed_page(self, page):
         '''
-        Fetches a list of transit feeds and associated meta data, returning them 
+        Fetches a list of transit feeds and associated meta data, returning them
         as a JSON object.
 
         Args:
             page - What page to get from the results
         '''
         r = requests.get(
-            self.base_url+'getFeeds', 
+            self.base_url+'getFeeds',
             params = {
                 'key':         self.key,
                 'type':        'gtfs',
@@ -91,7 +91,7 @@ class FeedFetcher:
 
     def get_feeds_data(self, feed_list, updated):
         """Get data associated with each of the feed ids in `feed_list` and save it to disk
-        
+
         Args:
             feed_list - List of feed ids to get
             updated   - Function to call when a feed is successfully updated
@@ -143,7 +143,7 @@ class FeedManager:
 
     def __del__(self):
         self.db.close()
-        
+
     def update(self, feed_data):
         """Given feed data, adds this data to the database and determines if any
         feeds need to be updated.
@@ -171,7 +171,7 @@ class FeedManager:
     def feeds_to_update(self):
         """Get a list of feed ids for feeds that need updating"""
         return [fid for fid in self.db if self.db[fid]['needs_update']]
-    
+
     def updated(self, fid):
         """Indicates that data has been acquired for the specified feed"""
         self.db[fid]["needs_update"] = False
@@ -219,6 +219,16 @@ class FeedManager:
         for fid in sorted(self.db):
             print(f"{fid:<50}: ", self.db[fid].get('validation_status', "unchecked"))
 
+    def get_extents(self):
+        for fid in sorted(self.db):
+            if self.db[fid].get('extents', None) is not None:
+                continue
+            filename = self.feed_fn_template.format(feed=clean_fid(fid))
+            extents  = parse_gtfs.GetExtents(filename)
+            self.db[fid]['extents'] = extents
+            self.db.sync()
+            print(f"{fid} {extents}")
+
 
 
 def AcquireFeeds(feeds_db_filename, data_template_name):
@@ -260,6 +270,12 @@ def ShowValidation(feeds_db_filename, data_template_name):
 
 
 
+def GetExtents(feeds_db_filename, data_template_name):
+    fm = FeedManager(db_filename=feeds_db_filename, feed_fn_template=data_template_name)
+    fm.get_extents()
+
+
+
 def help():
     print(f"Syntax {sys.argv[0]} <Command> <Feeds DB> <Data Template Name> [Parsed Prefix]")
     print("Command can be 'acquire' or 'validate' or 'show_validation'")
@@ -273,11 +289,11 @@ if command=="help":
     help()
 elif command=="acquire":
     feeds_db_filename  = sys.argv[2]
-    data_template_name = sys.argv[3] 
+    data_template_name = sys.argv[3]
     AcquireFeeds(feeds_db_filename, data_template_name)
 elif command=="validate":
     feeds_db_filename  = sys.argv[2]
-    data_template_name = sys.argv[3] 
+    data_template_name = sys.argv[3]
     parsed_prefix      = sys.argv[4]
     ValidateFeeds(feeds_db_filename, data_template_name, parsed_prefix)
 elif command=="show_validation":
@@ -286,8 +302,12 @@ elif command=="show_validation":
     ShowValidation(feeds_db_filename, data_template_name)
 elif command=="invalidate":
     feeds_db_filename  = sys.argv[2]
-    data_template_name = sys.argv[3] 
+    data_template_name = sys.argv[3]
     InvalidateFeeds(feeds_db_filename, data_template_name)
+elif command=="extents":
+    feeds_db_filename  = sys.argv[2]
+    data_template_name = sys.argv[3]
+    GetExtents(feeds_db_filename, data_template_name)
 else:
     print("Unrecognized command!")
     sys.exit(-1)
