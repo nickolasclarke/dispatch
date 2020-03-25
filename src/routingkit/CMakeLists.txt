@@ -8,7 +8,7 @@ endif()
 
 #Use the default Julia to find the CxxWrap path
 if(NOT DEFINED JL_CXX_WRAP_PATH)
-  execute_process(COMMAND julia "-e" "using CxxWrap; print(CxxWrap.CxxWrapCore.prefix_path())"
+  execute_process(COMMAND julia "--project" "-e" "using CxxWrap; print(CxxWrap.CxxWrapCore.prefix_path())"
     RESULT_VARIABLE julia_cxxwrap_result
     OUTPUT_VARIABLE JL_CXX_WRAP_PATH)
 

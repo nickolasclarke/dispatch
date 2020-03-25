@@ -4,3 +4,6 @@
 [submodule "submodules/libosmium"]
 	path = submodules/libosmium
 	url = git@github.com:osmcode/libosmium.git
+[submodule "submodules/protozero"]
+	path = submodules/protozero
+	url = git@github.com:mapbox/protozero.git
