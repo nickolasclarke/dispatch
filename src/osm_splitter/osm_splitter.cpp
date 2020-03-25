@@ -17,13 +17,10 @@
 
 */
 
-#include <cstdlib>   // for std::exit
-#include <cstring>   // for std::strcmp
-#include <exception> // for std::exception
+#include <exception>
 #include <fstream>
-#include <iostream>  // for std::cout, std::cerr
-#include <string>    // for std::string
-#include <unordered_set>
+#include <iostream>
+#include <string>
 
 // Allow any format of input files (XML, PBF, ...)
 #include <osmium/io/any_input.hpp>
@@ -38,7 +35,6 @@
 
 struct BoxCoordinates {
   double minlat, minlon, maxlat, maxlon;
-  std::unordered_set<osmium::object_id_type> nodes;
   BoxCoordinates(double minlat, double minlon, double maxlat, double maxlon) :
     minlat(minlat), minlon(minlon), maxlat(maxlat), maxlon(maxlon) {}
   bool contains(const double lat, const double lon) const {
@@ -104,7 +100,7 @@ class Boxer : public osmium::handler::Handler {
       w->close();
     }
   }
-}; 
+};
 
 
 
