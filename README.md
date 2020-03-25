@@ -58,6 +58,8 @@ subdirectory.
 #Get OSM extents (caches for faster runs a second time)
 ./build/bin/pull_gtfs.py extents data/feeds.db > data/extents
 
+#Get a Planet OSM highways file per the instructions below
+
 #Split up global highway data
 ./build/bin/osm_splitter data/planet-highways.osm.pbf data/extents
 
