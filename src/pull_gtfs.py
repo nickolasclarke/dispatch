@@ -235,6 +235,7 @@ class FeedManager:
         feed_list = sorted([x for x in self.db if self.db[x].get("validation_status", "unchecked")=="unchecked"])
         # Load work onto the queue
         for fid in feed_list:
+            print(f"Enqueueing {fid}...")
             out_queue.put(fid)
         while len(feed_list)>0:                           # If there's work left to do
             item    = in_queue.get(block=True)            # Wait for a message from a worker
