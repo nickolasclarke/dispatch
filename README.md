@@ -51,7 +51,10 @@ subdirectory.
 #Build everything using the instructions above!
 
 #Acquire data
-./build/bin/pull_gtfs.py acquire data/feeds.db
+./build/bin/pull_gtfs.py acquire_remote data/feeds.db
+
+#If data has already been downloaded and you need to rebuild the database use:
+#./build/bin/pull_gtfs.py acquire_local data/feeds.db
 
 #Validate data and create inputs for model
 ./build/bin/pull_gtfs.py validate data/feeds.db
@@ -198,12 +201,36 @@ time_dist = RoutingKit.getTravelTime(router, brooklyn_park.lat, brooklyn_park.ln
 
 
 
-Building on XSEDE
+XSEDE Comet
 =========================
+
+Compilation
+-------------------------
 ```bash
 module load gnu
 mkdir build
 cd build
 CXX=g++ CC=gcc cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=`pwd` ..
-make -j 20
+make install -j 20
+```
+
+
+Validation
+-------------------------
+```screen
+srun --partition=compute --pty --nodes=1 --ntasks=24 -t 10:00:00 --wait=0 --export=ALL /bin/bash
+module load gnu
+conda activate rise
+./build/bin/pull_gtfs.py validate data/feeds.db
+
+
+OSM Splitter
+-------------------------
+```
+screen
+srun --partition=large-shared --pty --nodes=1 --ntasks=1 --mem=60GB -t 10:00:00 --wait=0 --export=ALL /bin/bash
+module load gnu
+conda activate rise
+./build/bin/pull_gtfs.py extents data/feeds.db > data/extents
+./build/bin/osm_splitter data/planet-highways.osm.pbf data/extents 0.0288
 ```
