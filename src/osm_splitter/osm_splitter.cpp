@@ -68,7 +68,6 @@ class Boxer : public osmium::handler::Handler {
 
       //Read box coordinates into memory
       box_coordinates.emplace_back(minlat-margin,minlon-margin,maxlat+margin,maxlon+margin);
-      std::cout<<"Got box: "<<minlat<<","<<minlon<<"  "<<maxlat<<","<<maxlon<<std::endl;
     }
   }
 
