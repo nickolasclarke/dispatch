@@ -382,8 +382,11 @@ def GetExtents(gtfs_filename):
 
   Returns: [minlon, minlat, maxlon, maxlat]
   """
-  gtfs = ptg.load_geo_feed(gtfs_filename)
-  return gtfs.stops.total_bounds
+  gtfs   = ptg.load_geo_feed(gtfs_filename)
+  bounds = gtfs.stops.total_bounds
+  if np.isnan(bounds).any():
+    raise Exception("bounds had a nan!")
+  return bounds.tolist()
 
 
 
