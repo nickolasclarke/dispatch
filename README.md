@@ -31,9 +31,46 @@ Now build with the following
 
     mkdir build
     cd build
-    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=`pwd` ..
+    cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=`pwd` ..
     make
     make install
+
+
+
+Example Usage
+===========================
+
+Data files and some intermediate products are stored in the `data/`
+subdirectory.
+
+```bash
+#Build everything using the instructions above!
+
+#Acquire data
+./build/bin/pull_gtfs.py acquire data/feeds.db
+
+#Validate data and create inputs for model
+./build/bin/pull_gtfs.py validate data/feeds.db
+
+#Check validation status
+./build/bin/pull_gtfs.py show_validation data/feeds.db
+
+#Get OSM extents (caches for faster runs a second time)
+./build/bin/pull_gtfs.py extents data/feeds.db > data/extents
+
+#Split up global highway data
+./build/bin/osm_splitter data/planet-highways.osm.pbf data/extents
+
+#Run model on a dataset
+julia ./sim.jl ../../temp/minneapolis ../../data/minneapolis-saint-paul_minnesota.osm.pbf ../../data/depots_minneapolis.csv /z/out
+
+#Create inputs for a particular dataset
+./parse_gtfs.py data/gtfs_minneapolis.zip msp3.pickle
+
+#Identify possible places to put chargers
+#./find_chargers.py msp3.pickle
+```
+
 
 
 Data Flow, Data Structures
@@ -91,28 +128,7 @@ parse the GTFS data into the following format:
 ## `seg_props`
 
 
-Example Usage
-===========================
 
-```bash
-#Acquire data
-./src/pull_gtfs.py acquire data/feeds.db data/gtfs_{feed}.zip
-
-#Validate data and create inputs for model
-./src/pull_gtfs.py validate data/feeds.db data/gtfs_{feed}.zip temp/{feed}
-
-#Check validation status
-./src/pull_gtfs.py show_validation data/feeds.db data/gtfs_{feed}.zip temp/{feed}
-
-#Run model on a dataset
-julia ./sim.jl ../../temp/minneapolis ../../data/minneapolis-saint-paul_minnesota.osm.pbf ../../data/depots_minneapolis.csv /z/out
-
-#Create inputs for a particular dataset
-./parse_gtfs.py data/gtfs_minneapolis.zip msp3.pickle
-
-#Identify possible places to put chargers
-#./find_chargers.py msp3.pickle
-```
 
 
 Data Acquisition
