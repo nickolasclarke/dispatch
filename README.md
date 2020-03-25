@@ -10,13 +10,21 @@ Prerequisites:
   - Cmake
   - An API key from [OpenMobilityData](https://transitfeeds.com/api/keys)
 
+Acquire necessary tools with:
+
+    sudo apt install cmake zlib1g-dev
+
 Clone the repo with all neccessary submodules
 
     git clone --recurse-submodules git@github.com:nickolasclarke/dispatch.git
 
-Set up a Python environment if you wish, and install required python packages
+Set up a conda environment and install necessary packages:
 
+    conda create -n rise
+    conda activate rise
+    conda install pip
     pip install -r requirements.txt
+    
 
 Set up Julia env and install required julia packages. In Julia's `Pkg` manager
 
@@ -27,9 +35,48 @@ Now build with the following
 
     mkdir build
     cd build
-    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=`pwd` ..
+    cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=`pwd` ..
     make
     make install
+
+
+
+Example Usage
+===========================
+
+Data files and some intermediate products are stored in the `data/`
+subdirectory.
+
+```bash
+#Build everything using the instructions above!
+
+#Acquire data
+./build/bin/pull_gtfs.py acquire data/feeds.db
+
+#Validate data and create inputs for model
+./build/bin/pull_gtfs.py validate data/feeds.db
+
+#Check validation status
+./build/bin/pull_gtfs.py show_validation data/feeds.db
+
+#Get OSM extents (caches for faster runs a second time)
+./build/bin/pull_gtfs.py extents data/feeds.db > data/extents
+
+#Get a Planet OSM highways file per the instructions below
+
+#Split up global highway data padding each box with a 2 mile margin
+./build/bin/osm_splitter data/planet-highways.osm.pbf data/extents 0.0288
+
+#Run model on a dataset
+julia ./sim.jl ../../temp/minneapolis ../../data/minneapolis-saint-paul_minnesota.osm.pbf ../../data/depots_minneapolis.csv /z/out
+
+#Create inputs for a particular dataset
+./parse_gtfs.py data/gtfs_minneapolis.zip msp3.pickle
+
+#Identify possible places to put chargers
+#./find_chargers.py msp3.pickle
+```
+
 
 
 Data Flow, Data Structures
@@ -87,28 +134,7 @@ parse the GTFS data into the following format:
 ## `seg_props`
 
 
-Example Usage
-===========================
 
-```bash
-#Acquire data
-./src/pull_gtfs.py acquire data/feeds.db data/gtfs_{feed}.zip
-
-#Validate data and create inputs for model
-./src/pull_gtfs.py validate data/feeds.db data/gtfs_{feed}.zip temp/{feed}
-
-#Check validation status
-./src/pull_gtfs.py show_validation data/feeds.db data/gtfs_{feed}.zip temp/{feed}
-
-#Run model on a dataset
-julia ./sim.jl ../../temp/minneapolis ../../data/minneapolis-saint-paul_minnesota.osm.pbf ../../data/depots_minneapolis.csv /z/out
-
-#Create inputs for a particular dataset
-./parse_gtfs.py data/gtfs_minneapolis.zip msp3.pickle
-
-#Identify possible places to put chargers
-#./find_chargers.py msp3.pickle
-```
 
 
 Data Acquisition
@@ -116,3 +142,68 @@ Data Acquisition
 
 - GTFS transit feed data acquired from [OpenMobilityData](https://transitfeeds.com)
 - OSM data for all validated feeds acquired from ?
+
+
+
+
+
+Global Road Network
+===========================
+
+Acquire a planet.osm file
+-------------------------
+
+See directions [here](https://wiki.openstreetmap.org/wiki/Downloading_data) and
+downloads [here](https://planet.openstreetmap.org/).
+
+We got our data from [this link](https://free.nchc.org.tw/osm.planet/pbf/planet-latest.osm.pbf). The file was 50GB.
+
+
+Extract roads from file
+-------------------------
+
+First, install OSM tools:
+```bash
+sudo apt install osmosis
+```
+Now, extract the roads:
+```bash
+osmosis --read-pbf planet-latest.osm.pbf --tf accept-ways highway=* --used-node --write-pbf planet-highways.osm.pbf
+```
+Running Osmosis on the global dataset will take a while. On our 32 core, 192 GB
+RAM, SSD machine it took 8 hours 10 minutes. The resulting file `planet-highways.osm.pbf` was 17GB.
+
+Next, build the contraction hierarchy:
+```bash
+./routing_preprocess planet-highways.osm.pbf planet-highways.ch
+```
+Unfortunately, our timer didn't work for this process, but it will take 12-45
+hours and require 80+GB of RAM. The resulting file `planet-highways.ch` was 15GB.
+
+
+
+Test Julia Routing
+=========================
+
+```julia
+include("RoutingKit.jl")
+
+router = RoutingKit.Router("/z/msp-highways.osm.pbf", "/z/msp.ch")
+
+brooklyn_park = (lat=45.115208, lng=-93.373463)
+south_st_paul = (lat=44.892850, lng=-93.051079)
+
+time_dist = RoutingKit.getTravelTime(router, brooklyn_park.lat, brooklyn_park.lng, south_st_paul.lat, south_st_paul.lng, 3000)
+```
+
+
+
+Building on XSEDE
+=========================
+```bash
+module load gnu
+mkdir build
+cd build
+CXX=g++ CC=gcc cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=`pwd` ..
+make -j 20
+```

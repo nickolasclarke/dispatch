@@ -377,6 +377,19 @@ def HasBlockIDs(gtfs_filename):
 
 
 
+def GetExtents(gtfs_filename):
+  """Returns a bounding box containing all of the feed's stops.
+
+  Returns: [minlon, minlat, maxlon, maxlat]
+  """
+  gtfs   = ptg.load_geo_feed(gtfs_filename)
+  bounds = gtfs.stops.total_bounds
+  if np.isnan(bounds).any():
+    raise Exception("bounds had a nan!")
+  return bounds.tolist()
+
+
+
 def ParseFile(gtfs_filename, output_prefix):
   # find the busiest date
   date, service_ids = ptg.read_busiest_date(gtfs_filename)

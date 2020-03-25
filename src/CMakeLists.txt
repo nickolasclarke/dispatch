@@ -1,6 +1,7 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.10)
 
 add_subdirectory(routingkit)
+add_subdirectory(osm_splitter)
 
 set(SCRIPT_FILES
   find_chargers.py optimize_bus_distribution.py parse_gtfs.py pull_gtfs.py sim.jl RoutingKit.jl

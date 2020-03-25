@@ -5,7 +5,6 @@ import itertools
 import subprocess
 import shutil
 import glob
-import sqlite3
 import sys
 import multiprocessing
 import os
@@ -21,10 +20,23 @@ from os.path import basename
 import parse_gtfs
 
 
+
+def get_script_path():
+    path = os.path.abspath(__file__) #Location of file
+    path = os.path.split(path)[0]    #Strip off filename
+    if 'src' in path:
+        path = os.path.join(path, '..')  #Go up one directory out of `src/`
+    elif 'build' in path:
+        path = os.path.join(path, '../..') #Go up two directries out of `build/bin`
+    path = os.path.abspath(path)     #Make it pretty
+    return path
+
+
+
 def clean_fid(fid):
-    '''Strip invalid characters from a feed id to turn it into a form 
+    '''Strip invalid characters from a feed id to turn it into a form
        appropriate for filenames.
-    
+
     Args:
         fid - The feed id to convert
     '''
@@ -34,28 +46,26 @@ def clean_fid(fid):
 
 class FeedFetcher:
     """Handles communication with TransitFeeds.com"""
-    def __init__(self, base_url, key, feed_fn_template, workers=10):
+    def __init__(self, base_url, key, workers=10):
         """Args:
         base_url - Base URL for data site
         key      - API key for the site
-        feed_fn_template - Name such as 'data_dir/gtfs_{feed}.zip'
         workers  - Number of workers to use for downloading
         """
         self.base_url = base_url
         self.key      = key
-        self.feed_fn_template = feed_fn_template
         self.workers = workers
 
     def get_feed_page(self, page):
         '''
-        Fetches a list of transit feeds and associated meta data, returning them 
+        Fetches a list of transit feeds and associated meta data, returning them
         as a JSON object.
 
         Args:
             page - What page to get from the results
         '''
         r = requests.get(
-            self.base_url+'getFeeds', 
+            self.base_url+'getFeeds',
             params = {
                 'key':         self.key,
                 'type':        'gtfs',
@@ -91,7 +101,7 @@ class FeedFetcher:
 
     def get_feeds_data(self, feed_list, updated):
         """Get data associated with each of the feed ids in `feed_list` and save it to disk
-        
+
         Args:
             feed_list - List of feed ids to get
             updated   - Function to call when a feed is successfully updated
@@ -104,7 +114,7 @@ class FeedFetcher:
         url   = self.base_url+'getLatestFeedVersion'
         # Load work onto the queue
         for fid in feed_list:
-            outfn = self.feed_fn_template.format(feed=clean_fid(fid))
+            outfn = feed_fn_template.format(feed=clean_fid(fid))
             out_queue.put({"id":fid, "url":url, "params":{'key':self.key, 'feed':fid}, "outfn":outfn})
         while len(feed_list)>0:                        # If there's work left to do
             saved = in_queue.get(block=True)           # Wait for a message from a worker
@@ -137,13 +147,12 @@ class FeedFetcher:
 
 class FeedManager:
     """Persistently manages information about feeds and whether we have their data."""
-    def __init__(self, db_filename, feed_fn_template):
+    def __init__(self, db_filename):
         self.db = shelve.open(db_filename, writeback=True)
-        self.feed_fn_template = feed_fn_template
 
     def __del__(self):
         self.db.close()
-        
+
     def update(self, feed_data):
         """Given feed data, adds this data to the database and determines if any
         feeds need to be updated.
@@ -171,7 +180,7 @@ class FeedManager:
     def feeds_to_update(self):
         """Get a list of feed ids for feeds that need updating"""
         return [fid for fid in self.db if self.db[fid]['needs_update']]
-    
+
     def updated(self, fid):
         """Indicates that data has been acquired for the specified feed"""
         self.db[fid]["needs_update"] = False
@@ -185,7 +194,7 @@ class FeedManager:
 
     def validate_feed(self, fid, parsed_prefix):
         print(f"Validating '{fid}'... ", end='')
-        filename = self.feed_fn_template.format(feed=clean_fid(fid))
+        filename = feed_fn_template.format(feed=clean_fid(fid))
         try:
             if not parse_gtfs.DoesFeedLoad(filename):
                 self.db[fid]["validation_status"] = "cannot_load"
@@ -219,19 +228,48 @@ class FeedManager:
         for fid in sorted(self.db):
             print(f"{fid:<50}: ", self.db[fid].get('validation_status', "unchecked"))
 
+    def get_extents(self):
+        for fid in sorted(self.db):
+            if self.db[fid].get('extents', None) is None:
+                filename = feed_fn_template.format(feed=clean_fid(fid))
+                try:
+                    extents = parse_gtfs.GetExtents(filename)
+                except Exception as err:
+                    extents = f"error: {err}"
+                self.db[fid]['extents'] = extents
+                self.db.sync()
+
+            extents = self.db[fid]['extents']
+            if isinstance(extents,list):
+                #Unpackage the data from the extents
+                minlon, minlat, maxlon, maxlat = extents
+
+                feed_fn_template.format(feed=clean_fid(fid))
+                print(f"{fid} - good", file=sys.stderr)
+                print("{minlat:.8f} {minlon:.8f} {maxlat:.8f} {maxlon:.8f} {filename}".format(
+                    minlon   = minlon,
+                    minlat   = minlat,
+                    maxlon   = maxlon,
+                    maxlat   = maxlat,                
+                    filename = osm_fn_template.format(feed=clean_fid(fid))             
+                ))
+            else: #It was an error!
+                print(f"{fid} - {extents}", file=sys.stderr)
+
+    def invalidate_extents(self):
+        for fid in sorted(self.db):
+            self.db[fid]["extents"] = None
+        self.db.sync()
 
 
-def AcquireFeeds(feeds_db_filename, data_template_name):
+def AcquireFeeds(fm):
     ff = FeedFetcher(
         base_url='https://api.transitfeeds.com/v1/',
         key='d8243bad-de5a-47f7-8103-6d3c064d08da',
-        feed_fn_template=data_template_name
     )
 
     # Get data about all of the feeds
     feed_data = ff.get_feed_metadata()
-
-    fm = FeedManager(db_filename=feeds_db_filename, feed_fn_template=data_template_name)
 
     # Download feed metadata: determines if there are any new feeds or any feeds
     # which have new data
@@ -242,52 +280,41 @@ def AcquireFeeds(feeds_db_filename, data_template_name):
 
 
 
-def ValidateFeeds(feeds_db_filename, data_template_name, parsed_prefix):
-    fm = FeedManager(db_filename=feeds_db_filename, feed_fn_template=data_template_name)
-    fm.validate_feeds(parsed_prefix)
-
-
-
-def InvalidateFeeds(feeds_db_filename, data_template_name):
-    fm = FeedManager(db_filename=feeds_db_filename, feed_fn_template=data_template_name)
-    fm.invalidate_feeds()
-
-
-
-def ShowValidation(feeds_db_filename, data_template_name):
-    fm = FeedManager(db_filename=feeds_db_filename, feed_fn_template=data_template_name)
-    fm.print_validation()
-
-
-
 def help():
-    print(f"Syntax {sys.argv[0]} <Command> <Feeds DB> <Data Template Name> [Parsed Prefix]")
+    print(f"Syntax {sys.argv[0]} <Command> <Feeds DB> [Parsed Prefix]")
     print("Command can be 'acquire' or 'validate' or 'show_validation'")
-    print("Data Template Name should be like: 'data_dir/gtfs_{feed}.zip'")
     print("Parsed Prefix should be like: 'parsed_dir/{feed}'")
     print("[Parsed Prefix] is only needed for 'validate'")
     sys.exit(-1)
 
-command = sys.argv[1] if len(sys.argv)>=2 else "help"
+
+
+feed_fn_template = os.path.join(get_script_path(), "data/gtfs_{feed}.zip")
+parsed_template  = os.path.join(get_script_path(), "data/parsed_{feed}")
+osm_fn_template  = os.path.join(get_script_path(), "data/osm_{feed}.osm.pbf")
+
+print(f"feed_fn_template: {feed_fn_template}", file=sys.stderr)
+print(f"parsed_template:  {parsed_template}", file=sys.stderr)
+print(f"osm_fn_template:  {osm_fn_template}", file=sys.stderr)
+
+command           = sys.argv[1] if len(sys.argv) >= 2 else "help"
+feeds_db_filename = sys.argv[2]
+fm = FeedManager(db_filename=feeds_db_filename)
+
 if command=="help":
     help()
 elif command=="acquire":
-    feeds_db_filename  = sys.argv[2]
-    data_template_name = sys.argv[3] 
-    AcquireFeeds(feeds_db_filename, data_template_name)
+    AcquireFeeds(fm)
 elif command=="validate":
-    feeds_db_filename  = sys.argv[2]
-    data_template_name = sys.argv[3] 
-    parsed_prefix      = sys.argv[4]
-    ValidateFeeds(feeds_db_filename, data_template_name, parsed_prefix)
+    fm.validate_feeds(parsed_prefix)
 elif command=="show_validation":
-    feeds_db_filename  = sys.argv[2]
-    data_template_name = sys.argv[3]
-    ShowValidation(feeds_db_filename, data_template_name)
+    fm.print_validation()
 elif command=="invalidate":
-    feeds_db_filename  = sys.argv[2]
-    data_template_name = sys.argv[3] 
-    InvalidateFeeds(feeds_db_filename, data_template_name)
+    fm.invalidate_feeds()
+elif command=="extents":
+    fm.get_extents()
+elif command=="invalidate_extents":
+    fm.invalidate_extents()
 else:
     print("Unrecognized command!")
     sys.exit(-1)

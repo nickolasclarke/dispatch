@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.10)
 
 if(MSVC)
   add_compile_options(/W4 /WX)
@@ -8,7 +8,7 @@ endif()
 
 #Use the default Julia to find the CxxWrap path
 if(NOT DEFINED JL_CXX_WRAP_PATH)
-  execute_process(COMMAND julia "-e" "using CxxWrap; print(CxxWrap.CxxWrapCore.prefix_path())"
+  execute_process(COMMAND julia "--project" "-e" "using CxxWrap; print(CxxWrap.CxxWrapCore.prefix_path())"
     RESULT_VARIABLE julia_cxxwrap_result
     OUTPUT_VARIABLE JL_CXX_WRAP_PATH)
 
@@ -23,3 +23,7 @@ find_package(JlCxx)
 add_library(jlroutingkit SHARED rk_julia.cpp routingkit.cpp)
 target_link_libraries(jlroutingkit PRIVATE routingkit JlCxx::cxxwrap_julia)
 install(TARGETS jlroutingkit LIBRARY DESTINATION DESTINATION bin)
+
+add_executable(routing_preprocess routing_preprocess.cpp routingkit.cpp)
+target_link_libraries(routing_preprocess PRIVATE routingkit)
+install(TARGETS routing_preprocess RUNTIME DESTINATION DESTINATION bin)

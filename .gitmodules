@@ -1,3 +1,9 @@
 [submodule "submodules/RoutingKit"]
 	path = submodules/RoutingKit
 	url = https://github.com/RoutingKit/RoutingKit.git
+[submodule "submodules/libosmium"]
+	path = submodules/libosmium
+	url = git@github.com:osmcode/libosmium.git
+[submodule "submodules/protozero"]
+	path = submodules/protozero
+	url = git@github.com:mapbox/protozero.git
