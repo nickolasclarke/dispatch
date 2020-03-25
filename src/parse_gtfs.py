@@ -385,7 +385,7 @@ def GetExtents(gtfs_filename):
   gtfs   = ptg.load_geo_feed(gtfs_filename)
   bounds = gtfs.stops.total_bounds
   if np.isnan(bounds).any():
-    raise Exception("bounds had a nan!")
+    raise Exception("Extents: bounds had a nan!")
   return bounds.tolist()
 
 

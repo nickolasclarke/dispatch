@@ -33,6 +33,7 @@
 #include <osmium/io/reader_with_progress_bar.hpp>
 
 
+
 struct BoxCoordinates {
   double minlat, minlon, maxlat, maxlon;
   BoxCoordinates(double minlat, double minlon, double maxlat, double maxlon) :
