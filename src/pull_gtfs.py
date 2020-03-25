@@ -260,22 +260,21 @@ class FeedManager:
 
     def get_extents(self):
         for fid in sorted(self.db):
+            if self.db[fid]["validation_status"]!="good":
+                continue
             extents = self.db[fid]['extents']
-            if isinstance(extents,list):
-                #Unpackage the data from the extents
-                minlon, minlat, maxlon, maxlat = extents
+            #Unpackage the data from the extents
+            minlon, minlat, maxlon, maxlat = extents
 
-                feed_fn_template.format(feed=clean_fid(fid))
-                print(f"{fid} - good", file=sys.stderr)
-                print("{minlat:.8f} {minlon:.8f} {maxlat:.8f} {maxlon:.8f} {filename}".format(
-                    minlon   = minlon,
-                    minlat   = minlat,
-                    maxlon   = maxlon,
-                    maxlat   = maxlat,                
-                    filename = osm_fn_template.format(feed=clean_fid(fid))             
-                ))
-            else: #It was an error!
-                print(f"{fid} - {extents}", file=sys.stderr)
+            feed_fn_template.format(feed=clean_fid(fid))
+            print(f"{fid} - good", file=sys.stderr)
+            print("{minlat:.8f} {minlon:.8f} {maxlat:.8f} {maxlon:.8f} {filename}".format(
+                minlon   = minlon,
+                minlat   = minlat,
+                maxlon   = maxlon,
+                maxlat   = maxlat,                
+                filename = osm_fn_template.format(feed=clean_fid(fid))             
+            ))
 
 
 
