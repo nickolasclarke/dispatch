@@ -82,8 +82,8 @@ class FeedFetcher:
         #Get the first page of results to determine total number of pages
         return self.get_feed_page(1)['results']['numPages']
 
-    @classmethod
-    def url_to_file_worker(cls, out_queue, in_queue):
+    @staticmethod
+    def url_to_file_worker(out_queue, in_queue):
         """Worker that takes work items from `out_queue`, tries to download the
         urls therein and saves them to disk, reports back on success/failure via
         `in_queue`"""
@@ -147,8 +147,9 @@ class FeedFetcher:
 
 class FeedManager:
     """Persistently manages information about feeds and whether we have their data."""
-    def __init__(self, db_filename):
+    def __init__(self, db_filename, workers=24):
         self.db = shelve.open(db_filename, writeback=True)
+        self.workers = workers
 
     def __del__(self):
         self.db.close()
@@ -192,32 +193,60 @@ class FeedManager:
             self.db[f]["needs_update"] = True
         self.db.sync()
 
-    def validate_feed(self, fid, parsed_prefix):
-        print(f"Validating '{fid}'... ", end='')
-        filename = feed_fn_template.format(feed=clean_fid(fid))
-        try:
-            if not parse_gtfs.DoesFeedLoad(filename):
-                self.db[fid]["validation_status"] = "cannot_load"
-                print("cannot load")
-            elif not parse_gtfs.HasBusRoutes(filename):
-                self.db[fid]["validation_status"] = "no_buses"
-                print("no buses")
-            elif not parse_gtfs.HasBlockIDs(filename):
-                self.db[fid]["validation_status"] = "no_blocks"
-                print("no blocks")
-            else:
-                parse_gtfs.ParseFile(filename, parsed_prefix.format(feed=clean_fid(fid)))
-                self.db[fid]["validation_status"] = "good"
-                print("good")
-        except Exception as err:
-            print(f"ERROR on '{fid}': {err}")
-            self.db[fid]["validation_status"] = "error: " + str(err)
-        self.db.sync()
+    @staticmethod
+    def validate_feed(out_queue, in_queue):
+        """Worker that takes work items from `out_queue`, tries to download the
+        urls therein and saves them to disk, reports back on success/failure via
+        `in_queue`"""
+        while True:
+            fid = out_queue.get(block=True)                   # Retrieve job
+            filename = feed_fn_template.format(feed=clean_fid(fid))
+            try:
+                if not parse_gtfs.DoesFeedLoad(filename):
+                    in_queue.put( {"fid":fid, "result": "cannot_load"} )
+                elif not parse_gtfs.HasBusRoutes(filename):
+                    in_queue.put( {"fid":fid, "result": "no_buses"} )
+                elif not parse_gtfs.HasBlockIDs(filename):
+                    in_queue.put( {"fid":fid, "result": "no_blocks"} )
+                else:
+                    extents = parse_gtfs.GetExtents(filename)
+                    parse_gtfs.ParseFile(filename, parsed_template.format(feed=clean_fid(fid)))
+                    in_queue.put( {"fid": fid, "result":"good", "extents":extents} )
+            except Exception as err:
+                in_queue.put( {"fid":fid, "result": f"error: {err}"} )
 
-    def validate_feeds(self, parsed_prefix):
+    def validate_feeds(self):
         for fid in sorted(self.db):
             if self.db[fid].get("validation_status", "unchecked")=="unchecked":
-                self.validate_feed(fid, parsed_prefix)
+                self.validate_feed(fid)
+
+    def validate_feeds(self):
+        """Get data associated with each of the feed ids in `feed_list` and save it to disk
+
+        Args:
+            feed_list - List of feed ids to get
+            updated   - Function to call when a feed is successfully updated
+        """
+        out_queue = multiprocessing.Queue() # To send data to workers
+        in_queue  = multiprocessing.Queue() # To get data back from workers
+        # Pool of workers for downloading data
+        pool  = multiprocessing.Pool(self.workers, self.validate_feed, (out_queue,in_queue))
+        #Get a list of unvalidated feeds
+        feed_list = sorted([x for x in self.db if self.db[x].get("validation_status", "unchecked")=="unchecked"])
+        # Load work onto the queue
+        for fid in feed_list:
+            out_queue.put(fid)
+        while len(feed_list)>0:                           # If there's work left to do
+            item    = in_queue.get(block=True)            # Wait for a message from a worker
+            fid     = item['fid']
+            vresult = item['result']
+            print(f"{fid:50}: {vresult}")                 # Notify the user
+            if vresult=="good":
+                self.db[fid]["extents"] = item["extents"]
+            self.db[fid]["validation_status"] = vresult   # Set validation result
+            feed_list.remove(fid)                         # Remove from the fetch list
+            self.db.sync()                                # Save state
+        pool.terminate()                                  # Terminate the worker processes
 
     def invalidate_feeds(self):
         for fid in sorted(self.db):
@@ -249,7 +278,13 @@ class FeedManager:
 
 
 
-def AcquireFeeds(fm):
+def AcquireFeeds(fm, local):
+    """Acquire feed data from the internet. 
+    
+    Args:
+        local - If True then update from the local file set; otherwise, acquire 
+                from online.
+    """
     ff = FeedFetcher(
         base_url='https://api.transitfeeds.com/v1/',
         key='d8243bad-de5a-47f7-8103-6d3c064d08da',
@@ -262,8 +297,13 @@ def AcquireFeeds(fm):
     # which have new data
     fm.update(feed_data)
 
-    # Get updated data for those feeds which need it
-    ff.get_feeds_data(fm.feeds_to_update(), fm.updated)
+    if local:
+        for fid in fm.feeds_to_update():
+            if os.path.exists(feed_fn_template.format(feed=clean_fid(fid))):
+                fm.updated(fid)
+    else:
+        # Get updated data for those feeds which need it
+        ff.get_feeds_data(fm.feeds_to_update(), fm.updated)
 
 
 
@@ -290,18 +330,18 @@ fm = FeedManager(db_filename=feeds_db_filename)
 
 if command=="help":
     help()
-elif command=="acquire":
-    AcquireFeeds(fm)
+elif command=="acquire_remote":
+    AcquireFeeds(fm, local=False)
+elif command=="acquire_local":
+    AcquireFeeds(fm, local=True)
 elif command=="validate":
-    fm.validate_feeds(parsed_prefix)
+    fm.validate_feeds()
 elif command=="show_validation":
     fm.print_validation()
 elif command=="invalidate":
     fm.invalidate_feeds()
 elif command=="extents":
     fm.get_extents()
-elif command=="invalidate_extents":
-    fm.invalidate_extents()
 else:
     print("Unrecognized command!")
     sys.exit(-1)
