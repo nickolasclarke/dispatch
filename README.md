@@ -222,7 +222,7 @@ srun --partition=compute --pty --nodes=1 --ntasks=24 -t 10:00:00 --wait=0 --expo
 module load gnu
 conda activate rise
 ./build/bin/pull_gtfs.py validate data/feeds.db
-
+```
 
 OSM Splitter
 -------------------------
