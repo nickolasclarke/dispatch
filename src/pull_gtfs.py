@@ -46,11 +46,11 @@ def clean_fid(fid):
 
 class FeedFetcher:
     """Handles communication with TransitFeeds.com"""
-    def __init__(self, base_url, key, workers=10):
+    def __init__(self, base_url, key, workers=None):
         """Args:
         base_url - Base URL for data site
         key      - API key for the site
-        workers  - Number of workers to use for downloading
+        workers  - Number of workers to use for downloading (None=CPU Count)
         """
         self.base_url = base_url
         self.key      = key
@@ -147,7 +147,12 @@ class FeedFetcher:
 
 class FeedManager:
     """Persistently manages information about feeds and whether we have their data."""
-    def __init__(self, db_filename, workers=24):
+    def __init__(self, db_filename, workers=None):
+        """
+        Args:
+            db_filename - Location of feeds database file
+            workers - How many workers to use in multiprocessing. None=CPU count
+        """
         self.db = shelve.open(db_filename, writeback=True)
         self.workers = workers
 
