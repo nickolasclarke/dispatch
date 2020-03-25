@@ -68,7 +68,7 @@ subdirectory.
 #Get a Planet OSM highways file per the instructions below
 
 #Split up global highway data padding each box with a 2 mile margin
-#On our test machine this took 5654.05 seconds (1 hour 34 minutes) and 36.3GB RAM
+#On our test machine this took 1:35:48 seconds (1 hour 34 minutes) and 36.3GB RAM
 ./build/bin/osm_splitter data/planet-highways.osm.pbf data/extents 0.0288
 
 #Run model on a dataset
@@ -233,6 +233,6 @@ srun --partition=large-shared --pty --nodes=1 --ntasks=1 --mem=60GB -t 10:00:00 
 module load gnu
 conda activate rise
 ./build/bin/pull_gtfs.py extents data/feeds.db > data/extents
-#The following takes 5654.05 seconds (1 hour 34 minutes) and 36.3GB RAM
+#The following takes 1:35:48 and 36.3GB RAM
 ./build/bin/osm_splitter data/planet-highways.osm.pbf data/extents 0.0288
 ```
