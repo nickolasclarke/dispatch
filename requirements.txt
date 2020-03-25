@@ -8,3 +8,4 @@ mapclassify==2.1.1
 sklearn
 matplotlib
 wheel==0.34.1
+requests==2.23.0
