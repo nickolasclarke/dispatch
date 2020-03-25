@@ -230,16 +230,6 @@ class FeedManager:
 
     def get_extents(self):
         for fid in sorted(self.db):
-<<<<<<< HEAD
-            if self.db[fid].get('extents', None) is None:
-                filename = feed_fn_template.format(feed=clean_fid(fid))
-                try:
-                    extents = parse_gtfs.GetExtents(filename)
-                except Exception as err:
-                    extents = f"error: {err}"
-                self.db[fid]['extents'] = extents
-                self.db.sync()
-
             extents = self.db[fid]['extents']
             if isinstance(extents,list):
                 #Unpackage the data from the extents
@@ -257,23 +247,6 @@ class FeedManager:
             else: #It was an error!
                 print(f"{fid} - {extents}", file=sys.stderr)
 
-    def invalidate_extents(self):
-        for fid in sorted(self.db):
-            self.db[fid]["extents"] = None
-        self.db.sync()
-=======
-            if self.db[fid].get('extents', None) is not None:
-                continue
-            filename = self.feed_fn_template.format(feed=clean_fid(fid))
-            try:
-                extents  = parse_gtfs.GetExtents(filename)
-            except Exception as err:
-                extents = f"error: {err}"
-            self.db[fid]['extents'] = extents
-            self.db.sync()
-            print(f"{fid} {extents}")
-
->>>>>>> fe1f03b... Add an 'extents' command to pull_gtfs.py
 
 
 def AcquireFeeds(fm):
