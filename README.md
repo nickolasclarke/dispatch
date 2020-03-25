@@ -18,9 +18,13 @@ Clone the repo with all neccessary submodules
 
     git clone --recurse-submodules git@github.com:nickolasclarke/dispatch.git
 
-Set up a Python environment if you wish, and install required python packages
+Set up a conda environment and install necessary packages:
 
+    conda create -n rise
+    conda activate rise
+    conda install pip
     pip install -r requirements.txt
+    
 
 Set up Julia env and install required julia packages. In Julia's `Pkg` manager
 
@@ -190,4 +194,16 @@ brooklyn_park = (lat=45.115208, lng=-93.373463)
 south_st_paul = (lat=44.892850, lng=-93.051079)
 
 time_dist = RoutingKit.getTravelTime(router, brooklyn_park.lat, brooklyn_park.lng, south_st_paul.lat, south_st_paul.lng, 3000)
+```
+
+
+
+Building on XSEDE
+=========================
+```bash
+module load gnu
+mkdir build
+cd build
+CXX=g++ CC=gcc cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=`pwd` ..
+make -j 20
 ```

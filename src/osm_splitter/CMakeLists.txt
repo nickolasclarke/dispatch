@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 
-find_package(Osmium REQUIRED)
+message(STATUS CMAKE_MODULE_PATH)
+
+find_package(Osmium REQUIRED COMPONENTS pbf)
 find_package(Threads REQUIRED)
 find_package(ZLIB REQUIRED)
 find_package(BZip2)
