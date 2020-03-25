@@ -60,8 +60,8 @@ subdirectory.
 
 #Get a Planet OSM highways file per the instructions below
 
-#Split up global highway data
-./build/bin/osm_splitter data/planet-highways.osm.pbf data/extents
+#Split up global highway data padding each box with a 2 mile margin
+./build/bin/osm_splitter data/planet-highways.osm.pbf data/extents 0.0288
 
 #Run model on a dataset
 julia ./sim.jl ../../temp/minneapolis ../../data/minneapolis-saint-paul_minnesota.osm.pbf ../../data/depots_minneapolis.csv /z/out

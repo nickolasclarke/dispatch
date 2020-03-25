@@ -56,7 +56,7 @@ class Boxer : public osmium::handler::Handler {
   std::vector<std::shared_ptr<osmium::io::Writer>> writers;
 
  public:
-  Boxer(const std::string &box_filename, const osmium::io::Header &header){
+  Boxer(const std::string &box_filename, const osmium::io::Header &header, const double margin){
     std::ifstream fboxin(box_filename);
     double minlat, minlon, maxlat, maxlon;
     std::string filename;
@@ -70,7 +70,7 @@ class Boxer : public osmium::handler::Handler {
       writers.emplace_back(new osmium::io::Writer{output_file, header, osmium::io::overwrite::allow});
 
       //Read box coordinates into memory
-      box_coordinates.emplace_back(minlat,minlon,maxlat,maxlon);
+      box_coordinates.emplace_back(minlat-margin,minlon-margin,maxlat+margin,maxlon+margin);
     }
   }
 
@@ -109,18 +109,22 @@ class Boxer : public osmium::handler::Handler {
 
 
 int main (int argc, char *argv[]){
-  if (argc != 3) {
-    std::cerr<<"Usage: "<<argv[0]<<" <osm highway file> <boxes>\n"
+  if (argc != 4) {
+    std::cerr<<"Usage: "<<argv[0]<<" <osm highway file> <boxes> <margin>\n"
       "Reads an OSM-PBF file and cuts it into the given rectangles.\n"
       "The boxes file must have the form\n"
       "  <minlat> <minlon> <maxlat> <maxlon> <filename>\n"
       "  [...]\n"
-      "Rectangles are specified equivalently by: (bottom left top right)"<<std::endl;
+      "Rectangles are specified equivalently by: (bottom left top right)\n"
+      "Margin is a decimal number indicating how many degrees margin to add to the box\n"
+      "Remember: 1 degree of latitude is equal to 69 miles, so a 1 mile margin is 0.0144 degrees"
+      <<std::endl;
     return 1;
   }
 
   const std::string osm_filename = argv[1];
   const std::string box_filename = argv[2];
+  const double margin = std::stod(argv[3]);
 
   // Initialize Reader
   osmium::io::ReaderWithProgressBar reader{true, osm_filename, osmium::osm_entity_bits::node | osmium::osm_entity_bits::way};
@@ -129,7 +133,7 @@ int main (int argc, char *argv[]){
   osmium::io::Header header = reader.header();
   header.set("generator", "osm_splitter");
 
-  Boxer boxer(box_filename, header);
+  Boxer boxer(box_filename, header, margin);
 
   using index_type = osmium::index::map::SparseMemArray<osmium::unsigned_object_id_type, osmium::Location>;
   using location_handler_type = osmium::handler::NodeLocationsForWays<index_type>;
