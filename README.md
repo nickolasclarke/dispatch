@@ -68,10 +68,11 @@ subdirectory.
 #Get a Planet OSM highways file per the instructions below
 
 #Split up global highway data padding each box with a 2 mile margin
+#On our test machine this took 1:35:48 seconds (1 hour 34 minutes) and 36.3GB RAM
 ./build/bin/osm_splitter data/planet-highways.osm.pbf data/extents 0.0288
 
 #Run model on a dataset
-julia ./sim.jl ../../temp/minneapolis ../../data/minneapolis-saint-paul_minnesota.osm.pbf ../../data/depots_minneapolis.csv /z/out
+julia --project ./sim.jl ../../temp/minneapolis ../../data/minneapolis-saint-paul_minnesota.osm.pbf ../../data/depots_minneapolis.csv /z/out
 
 #Create inputs for a particular dataset
 ./parse_gtfs.py data/gtfs_minneapolis.zip msp3.pickle
@@ -232,5 +233,6 @@ srun --partition=large-shared --pty --nodes=1 --ntasks=1 --mem=60GB -t 10:00:00 
 module load gnu
 conda activate rise
 ./build/bin/pull_gtfs.py extents data/feeds.db > data/extents
+#The following takes 1:35:48 and 36.3GB RAM
 ./build/bin/osm_splitter data/planet-highways.osm.pbf data/extents 0.0288
 ```
