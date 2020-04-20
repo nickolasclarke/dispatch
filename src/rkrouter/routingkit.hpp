@@ -1,5 +1,7 @@
 #pragma once
 
+#include <utility>
+
 #include <routingkit/osm_simple.h>
 #include <routingkit/contraction_hierarchy.h>
 #include <routingkit/geo_position_to_node.h>
@@ -20,5 +22,5 @@ class Router {
   unsigned getNearestNode(const double lat, const double lon, const int search_radius_m) const;
 
   //Returns <travel time (s), travel distance (m)>
-  std::vector<double> getTravelTime(const double from_lat, const double from_lon, const double to_lat, const double to_lon, const int search_radius_m) const;
+  std::pair<double,double> getTravelTime(const double from_lat, const double from_lon, const double to_lat, const double to_lon, const int search_radius_m) const;
 };

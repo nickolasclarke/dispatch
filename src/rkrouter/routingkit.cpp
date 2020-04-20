@@ -5,6 +5,7 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 #include "routingkit.hpp"
 
@@ -60,7 +61,7 @@ unsigned Router::getNearestNode(const double lat, const double lon, const int se
 
 
 ///Returns <travel time (s), travel distance (m)>
-std::vector<double> Router::getTravelTime(const double from_lat, const double from_lon, const double to_lat, const double to_lon, const int search_radius_m) const {
+std::pair<double,double> Router::getTravelTime(const double from_lat, const double from_lon, const double to_lat, const double to_lon, const int search_radius_m) const {
   unsigned from;
   unsigned to;
 
@@ -86,5 +87,5 @@ std::vector<double> Router::getTravelTime(const double from_lat, const double fr
   for(const auto &x: ch_query.get_arc_path())
     distance += graph.geo_distance[x];
 
-  return std::vector<double>{{travel_time,distance}};
+  return {travel_time, distance};
 }
