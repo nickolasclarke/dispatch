@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 import argparse
+import code #TODO
 
+import numpy as np
 import pandas as pd
 
 import dispatch
@@ -15,189 +17,62 @@ Args:
   stop_prob  - Probability of stopping at a given stop with zero duration
   dp - Data pack
 """
-function GetInductiveChargeTimes(dp)
+def GetInductiveChargeTimes(dp):
+  pass
     #Create a set of stops with inductive charging
-    stops = Set(select(filter(row->row[:inductive_charging]==true, dp.stops), :stop_id))
+      # stops = Set(select(filter(row->row[:inductive_charging]==true, dp.stops), :stop_id))
     #Filter stop_times to those with inductive charigng
-    stop_times = filter(row->in(row[:stop_id], stops), dp.stop_times)
+      # stop_times = filter(row->in(row[:stop_id], stops), dp.stop_times)
     #Summarize stop time and number of stops by trip
-    stop_times = groupby(
-        (
-            stop_duration = :stop_duration=>sum,
-            stops         = :stop_duration=>x->length(x),
-            zero_stops    = :stop_duration=>x->sum(x.==0)
-        ),
-        stop_times,  #Table to groupby
-        :trip_id     #Groupby key
-    )
+        # stop_times = groupby(
+        #     (
+        #         stop_duration = :stop_duration=>sum,
+        #         stops         = :stop_duration=>x->length(x),
+        #         zero_stops    = :stop_duration=>x->sum(x.==0)
+        #     ),
+        #     stop_times,  #Table to groupby
+        #     :trip_id     #Groupby key
+        # )
     #Number we actually stop at
-    stop_times = transform(stop_times, :zero_stops => dp.params.zstops_frac_stopped_at*select(stop_times, :zero_stops))
+      # stop_times = transform(stop_times, :zero_stops => dp.params.zstops_frac_stopped_at*select(stop_times, :zero_stops))
     #How long we spend stopped, in total
-    stop_times = transform(stop_times, :stop_duration => select(stop_times, :stop_duration) .+ select(stop_times, :zero_stops).*dp.params.zstops_average_time)
-    stop_times = select(stop_times, (:trip_id, :stop_duration))
-    return Dict(x.trip_id=>x for x in stop_times)
-end
+      #stop_times = transform(stop_times, :stop_duration => select(stop_times, :stop_duration) .+ select(stop_times, :zero_stops).*dp.params.zstops_average_time)
+      # stop_times = select(stop_times, (:trip_id, :stop_duration))
+      # return Dict(x.trip_id=>x for x in stop_times)
 
 
 
-function RunBlock(
-  """
-  Simulate bus movement along a route. Information about the journey is stored by
-  modifying "block".
 
-  Args:
-      block - Block of trips to be simulated (MODIFIED WITH OUTPUT)
-      dp    - A data pack
-  """
-
-  prevtrip = block[1]
-
-  #Get time, distance, and energy from depot to route
-  bstart_depot = FindClosestDepotByTime(dp.stop_ll[prevtrip.start_stop_id], dp)
-  block_energy_depot_to_start = bstart_depot[:dist] * dp.params[:kwh_per_km]
-
-  #Modify first trip of block appropriately
-  block[1] = merge(block[1], (;
-      bus_id=1,
-      energy_left = dp.params[:battery_cap_kwh] - block_energy_depot_to_start,
-      depot = bstart_depot[:id]
-  ))
-
-  if length(block)==1
-      println("Block has length 1!")
-  end
-
-  previ=1
-  #Run through all the trips in the block
-  for tripi in 1:length(block)
-      trip = block[tripi]
-      prevtrip = block[previ]
-
-      #TODO: Incorporate charging at the beginning of trip if there is a charger present
-      trip_energy = trip.distance * dp.params[:kwh_per_km]
-
-      #Subtract energy gained through inductive charging from the energetic
-      #cost of the trip
-      trip_energy -= get(dp.inductive_charge_time, trip.trip_id, 0u"kW*hr")
-
-      #TODO: Incorporate energetics of stopping sporadically along the trip
-      #trip_energy -= GetStopChargingTime(stops, trip.trip_id) #TODO: Convert to energy
-
-      #Get energetics of completing this trip and then going to a depot
-      end_depot = FindClosestDepotByTime(dp.stop_ll[trip.end_stop_id], dp)
-      energy_from_end_to_depot = end_depot[:dist] * dp.params[:kwh_per_km]
-
-      #Energy left to perform this trip
-      energy_left_this_trip = prevtrip.energy_left
-
-      #Do we have enough energy to complete this trip and then go to the depot?
-      if energy_left_this_trip - trip_energy - energy_from_end_to_depot < 0u"kW*hr"
-          #We can't complete this trip and get back to the depot, so it was better to end the block after the previous trip
-          #TODO: Assert previous trip ending stop_id is same as this trip's starting stop_id
-          #Get closest depot and energetics to the start of this trip (which is also the end of the previous trip)
-          start_depot = FindClosestDepotByTime(dp.stop_ll[trip.start_stop_id], dp)
-          energy_from_start_to_depot = start_depot[:dist] * dp.params[:kwh_per_km]
-
-          #TODO: Something bad has happened if we've reached this: we shouldn't have even made the last trip.
-          if energy_from_start_to_depot < prevtrip.energy_left
-              println("\nEnergy trap found!")
-          end
-
-          #Alter the previous trip to note that we ended it
-          energy_left_last_trip = prevtrip.energy_left-energy_from_start_to_depot
-          charge_time = (dp.params[:battery_cap_kwh]-energy_left_last_trip)/dp.params[:charging_rate]
-          block[previ] = merge(block[previ], (;
-              energy_left = energy_left_last_trip,
-              bus_busy_end = prevtrip.bus_busy_end+start_depot[:time] + charge_time,
-              depot = start_depot[:id]
-          ))
-
-          #TODO: Assumes that trip from trip start to depot and from depot to trip start is the same length
-          energy_left_this_trip = dp.params[:battery_cap_kwh]-energy_from_start_to_depot
-
-          #Alter this trip so that we start it with a fresh bus
-          block[tripi] = merge(block[tripi], (;
-              bus_busy_start = trip.start_arrival_time - start_depot[:time],
-              bus_id = prevtrip.bus_id+1
-          ))
-      else
-          #We have enough energy to make the trip, so let's start it!
-          block[tripi] = merge(block[tripi], (;
-              bus_busy_start = trip.start_arrival_time,
-              bus_id = prevtrip.bus_id
-          ))
-      end
-
-      #We have enough energy to finish the trip
-      block[tripi] = merge(block[tripi], (;
-          bus_busy_end = trip.end_arrival_time,
-          energy_left = energy_left_this_trip-trip_energy
-      ))
-
-      #This trip is now the previous trip
-      previ = tripi
-  end
-
-  #Get energetics of getting from the final trip to its depot
-  bend_depot = FindClosestDepotByTime(dp.stop_ll[prevtrip.start_stop_id], dp)
-  block_energy_end_to_depot = bend_depot[:dist] * dp.params[:kwh_per_km]
-
-  #Adjust beginning and end
-  block[1]   = merge(block[1], (;bus_busy_start = block[1].bus_busy_start - bstart_depot[:time]))
-  block[end] = merge(block[end], (; energy_left = block[end].energy_left - block_energy_end_to_depot))
-
-
-
-def Model(trips, data_pack):
-  """
-  Simulate a set of trips to determine which buses are needed when and how much
-  energy is used.
-
-  Args:
-      trips     - List of trips to be taken
-      data_pack - A data pack
-  """
-
-  trips = sort(trips, :start_arrival_time)
-
-  #Add/zero out the bus_id column
-  trips = transform(trips, :bus_id         => -1          *ones(Int64,   length(trips)))
-  trips = transform(trips, :energy_left    => -1.0u"kW*hr"*ones(Float64, length(trips)))
-  trips = transform(trips, :bus_busy_start => -1.0u"s"    *ones(Float64, length(trips)))
-  trips = transform(trips, :bus_busy_end   => -1.0u"s"    *ones(Float64, length(trips)))
-  trips = transform(trips, :depot          => -1          *ones(Int64,   length(trips)))
-
-  #Add the inductive charging time to the data pack
-  data_pack = (data_pack..., inductive_charge_time = GetInductiveChargeTimes(data_pack))
-
-  bus_swaps = []
-  for (block_id,block) in groupby(identity, trips, :block_id)
-      print(".")
-      RunBlock(block, data_pack)
-  end
-  println("done")
-
-  return trips
-
-
-
-def GetNearestDepots(router, stops, depots, search_radius_m=1000):
+def GetNearestDepots(router, trips, stops, depots, search_radius_m=1000):
+  stops = stops.copy()
+  #Get set of stops that are actually at the end of trips
+  trip_stops = set(trips.start_stop_id.tolist() + trips.end_stop_id.tolist())
+  #Filter stops to this list
+  trip_stops = stops['stop_id'].isin(trip_stops)
+  #For each trip stop, find its closest depot
   ret = dispatch.GetClosestDepot(
     router,
-    stops['stop_lat'].to_numpy(),
-    stops['stop_lon'].to_numpy(),
+    stops[trip_stops]['lat'].to_numpy(),
+    stops[trip_stops]['lng'].to_numpy(),
     depots['lat'].to_numpy(),
-    depots['lon'].to_numpy(),
+    depots['lng'].to_numpy(),
     search_radius_m
   )
-
+  #Add columns to stops containing the depot information
+  stops['depot_id']                      = -1
+  stops['depot_distance']                = np.nan
+  stops['depot_time']                    = np.nan
+  stops.loc[trip_stops,'depot_id']       = ret.depot_id
+  stops.loc[trip_stops,'depot_distance'] = ret.dist_to_depot
+  stops.loc[trip_stops,'depot_time']     = ret.time_to_depot
+  return stops
 
 
 def DepotsHaveNodes(router, depots, search_radius_m=1000):
   good = True
   for _,x in depots.iterrows():
     try:
-      road_node = router.getNearestNode(x.lat, x.lng, search_radius_m=1000)
+      road_node = router.getNearestNode(x.lat, x.lng, search_radius_m)
     except Exception as e:
       print(e)
       print(f"Depot {x.name} ({x.lat},{x.lng} is not near a road network node!")
@@ -218,7 +93,11 @@ def main(
   depots     = pd.read_csv(depots_filename)
 
   #TODO: Apply units to tables?
-  stops = GetNearestDepots(router, stops, depots, search_radius_m=1000)
+
+  #Modify the stops table to include depot_id, depot_distance, and depot_time
+  #columns
+  print("Getting nearest depots...")
+  stops = GetNearestDepots(router, trips, stops, depots, search_radius_m=1000)
 
   params = dispatch.Parameters()
   params.battery_cap_kwh         = 240.0 #u"kW*hr",
@@ -229,28 +108,27 @@ def main(
   params.zstops_average_time     = 10    #u"s",
 
   #Ensure that depots are near a node in the road network
+  print("Testing to see if all depots are near nodes...")
   if not DepotsHaveNodes(router, depots, search_radius_m=1000):
     raise Exception("One or more of the depots don't have road network nodes! Quitting.")
   
   data_pack = {
-    "stops":      stops,
-    "stop_times": stop_times,
-    "router":     router,     #Router object used to determine network distances between stops
-    "stop_ll":    stop_ll,    #Dictionary containing the latitudes and longitudes of stops
     "depots":     depots,     #List of depot locations
-    "params":     params      #Model parameters
+    "params":     params,     #Model parameters
+    "router":     router,     #Router object used to determine network distances between stops
+    "stop_times": stop_times,
+    "stops":      stops
   }
 
-  #Run the model
-  bus_assignments = Model(trips, data_pack);
+  print("Creating model...")
+  dispatch.Model(params, trips.to_csv(), stops.to_csv())
 
-  return bus_assignments
-
+  code.interact(local=locals())
 
 
 #TODO: Used for testing
 #ARGS = ["../../temp/minneapolis", "../../data/minneapolis-saint-paul_minnesota.osm.pbf", "../../data/depots_minneapolis.csv", "/z/out"]
-#julia --project -i sim.jl "../../data/parsed_minneapolis" "../../data/minneapolis-saint-paul_minnesota.osm.pbf" "../../data/depots_minneapolis.csv" "/z/out"
+#python3 sim.py "../../data/parsed_minneapolis" "../../data/minneapolis-saint-paul_minnesota.osm.pbf" "../../data/depots_minneapolis.csv" "/z/out"
 
 parser = argparse.ArgumentParser(description='Run the model TODO.')
 parser.add_argument('parsed_gtfs_prefix', type=str, help='TODO')
@@ -259,11 +137,12 @@ parser.add_argument('depots_filename',    type=str, help='TODO')
 parser.add_argument('output_filename',    type=str, help='TODO')
 args = parser.parse_args()
 
-println("parsed_gtfs_prefix", args.parsed_gtfs_prefix)
-println("osm_data",           args.osm_data)
-println("depots_filename",    args.depots_filename)
-println("output_filename",    args.output_filename)
+print(f"parsed_gtfs_prefix: {args.parsed_gtfs_prefix}")
+print(f"osm_data:           {args.osm_data}")
+print(f"depots_filename:    {args.depots_filename}")
+print(f"output_filename:    {args.output_filename}")
 
+print("Parsing OSM data into router...")
 router = dispatch.Router(args.osm_data)
 
 bus_assignments = main(args.parsed_gtfs_prefix, router, args.depots_filename, args.output_filename)
