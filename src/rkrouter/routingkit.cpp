@@ -35,7 +35,6 @@ Router::Router(const std::string &pbf_filename){
 Router::Router(const std::string &pbf_filename, const std::string &ch_filename){
   // Load a car routing graph from OpenStreetMap-based data
   graph = rk::simple_load_osm_car_routing_graph_from_pbf(pbf_filename);
-  auto tail = rk::invert_inverse_vector(graph.first_out);
 
   // Load the shortest path index
   ch = rk::ContractionHierarchy::load_file(ch_filename);

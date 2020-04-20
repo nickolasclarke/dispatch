@@ -26,7 +26,7 @@ function GetInductiveChargeTimes(dp)
             stops         = :stop_duration=>x->length(x), 
             zero_stops    = :stop_duration=>x->sum(x.==0)
         ),
-        stop_times, #Table to groupby
+        stop_times,  #Table to groupby
         :trip_id     #Groupby key
     )
     #Number we actually stop at
@@ -90,6 +90,10 @@ function RunBlock(block, dp)
         energy_left = dp.params[:battery_cap_kwh] - block_energy_depot_to_start,
         depot = bstart_depot[:id]
     ))
+
+    if length(block)==1
+        println("Block has length 1!")
+    end
 
     previ=1
     #Run through all the trips in the block
@@ -257,11 +261,10 @@ end
 
 function main(
     input_prefix,    
-    osm_data,        
+    router,        
     depots_filename, 
     output_filename
 )
-    router     = RoutingKit.Router(osm_data)
     trips      = loadtable(input_prefix * "_trips.csv")
     stops      = loadtable(input_prefix * "_stops.csv")
     stop_times = loadtable(input_prefix * "_stop_times.csv")
@@ -279,7 +282,7 @@ function main(
 
     #TODO: Get these from command-line args or a config file
     params = (
-      battery_cap_kwh         = 200.0u"kW*hr",
+      battery_cap_kwh         = 240.0u"kW*hr",
       kwh_per_km              = 1.2u"kW*hr/km",
       charging_rate           = 150.0u"kW",
       search_radius           = 1.0u"km",
@@ -308,12 +311,14 @@ function main(
 
     #Run the model
     bus_assignments = Model(trips, data_pack);
+
+    return bus_assignments
 end
 
 
 #TODO: Used for testing
 #ARGS = ["../../temp/minneapolis", "../../data/minneapolis-saint-paul_minnesota.osm.pbf", "../../data/depots_minneapolis.csv", "/z/out"]
-#julia -i sim.jl "../../temp/minneapolis" "../../data/minneapolis-saint-paul_minnesota.osm.pbf" "../../data/depots_minneapolis.csv" "/z/out"
+#julia --project -i sim.jl "../../data/parsed_minneapolis" "../../data/minneapolis-saint-paul_minnesota.osm.pbf" "../../data/depots_minneapolis.csv" "/z/out"
 
 if length(ARGS)!=4
     println("Syntax: <Program> <Parsed GTFS Output Prefix> <OSM Data> <Depots File> <Model Output>")
@@ -325,9 +330,10 @@ osm_data        = ARGS[2]
 depots_filename = ARGS[3]
 output_filename = ARGS[4]
 
-print(input_prefix,osm_data,depots_filename,output_filename)
-main(input_prefix,osm_data,depots_filename,output_filename)
+router = RoutingKit.Router(osm_data)
 
-
-
-
+println("input_prefix", input_prefix)
+println("osm_data", osm_data)
+println("depots_filename", depots_filename)
+println("output_filename", output_filename)
+bus_assignments = main(input_prefix,router,depots_filename,output_filename)
