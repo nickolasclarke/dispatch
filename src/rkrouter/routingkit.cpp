@@ -5,6 +5,7 @@
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 #include "routingkit.hpp"
 
@@ -34,7 +35,6 @@ Router::Router(const std::string &pbf_filename){
 Router::Router(const std::string &pbf_filename, const std::string &ch_filename){
   // Load a car routing graph from OpenStreetMap-based data
   graph = rk::simple_load_osm_car_routing_graph_from_pbf(pbf_filename);
-  auto tail = rk::invert_inverse_vector(graph.first_out);
 
   // Load the shortest path index
   ch = rk::ContractionHierarchy::load_file(ch_filename);
@@ -60,7 +60,7 @@ unsigned Router::getNearestNode(const double lat, const double lon, const int se
 
 
 ///Returns <travel time (s), travel distance (m)>
-std::vector<double> Router::getTravelTime(const double from_lat, const double from_lon, const double to_lat, const double to_lon, const int search_radius_m) const {
+std::pair<double,double> Router::getTravelTime(const double from_lat, const double from_lon, const double to_lat, const double to_lon, const int search_radius_m) const {
   unsigned from;
   unsigned to;
 
@@ -86,5 +86,5 @@ std::vector<double> Router::getTravelTime(const double from_lat, const double fr
   for(const auto &x: ch_query.get_arc_path())
     distance += graph.geo_distance[x];
 
-  return std::vector<double>{{travel_time,distance}};
+  return {travel_time, distance};
 }

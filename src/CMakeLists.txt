@@ -1,10 +1,17 @@
 cmake_minimum_required(VERSION 3.10)
 
-add_subdirectory(routingkit)
-add_subdirectory(osm_splitter)
+add_subdirectory(cpp_utilities)
+add_subdirectory(dispatch_package)
+
+add_library(rkrouter rkrouter/routingkit.cpp)
+target_include_directories(rkrouter PUBLIC rkrouter)
+target_link_libraries(rkrouter PUBLIC routingkit)
+set_property(TARGET rkrouter PROPERTY POSITION_INDEPENDENT_CODE ON)
+
+
 
 set(SCRIPT_FILES
-  find_chargers.py optimize_bus_distribution.py parse_gtfs.py pull_gtfs.py sim.jl RoutingKit.jl
+  find_chargers.py optimize_bus_distribution.py parse_gtfs.py pull_gtfs.py sim.py
 )
  
 foreach(pyfile ${SCRIPT_FILES})
