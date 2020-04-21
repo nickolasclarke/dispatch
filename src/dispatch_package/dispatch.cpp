@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <iostream>
 #include <limits>
+#include <random>
 #include <sstream>
 #include <stdexcept>
 #include <tuple>
@@ -15,6 +16,36 @@ namespace py = pybind11;
 
 const auto dinf = std::numeric_limits<double>::infinity();
 const auto dnan = std::numeric_limits<double>::quiet_NaN();
+
+////////////////////////////////
+//RANDOM NUMBERS
+////////////////////////////////
+
+typedef std::mt19937 our_random_engine;
+
+our_random_engine& rand_engine(){
+  thread_local our_random_engine eng;
+  return eng;
+}
+
+void seed_rand(unsigned long seed){
+  #pragma omp critical
+  if(seed==0){
+    std::uint_least32_t seed_data[std::mt19937::state_size];
+    std::random_device r;
+    std::generate_n(seed_data, std::mt19937::state_size, std::ref(r));
+    std::seed_seq q(std::begin(seed_data), std::end(seed_data));
+    rand_engine().seed(q);
+  } else {
+    rand_engine().seed(seed);
+  }
+}
+
+double r_uniform(double from, double thru){
+  std::uniform_real_distribution<double> distribution(from,thru);
+  return distribution(rand_engine());
+}
+
 
 
 //TODO: Assumes that trip from trip start to depot and from depot to
