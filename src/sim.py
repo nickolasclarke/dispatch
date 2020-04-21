@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import collections
 import code #TODO
 
 import numpy as np
@@ -9,15 +10,28 @@ import pandas as pd
 import dispatch
 
 
-"""
-For a given trip_id, determine how much time is spent waiting at stops during
-that trip.
 
-Args:
-  stop_prob  - Probability of stopping at a given stop with zero duration
-  dp - Data pack
-"""
+def ConvertVectorOfStructsToDataFrame(vos):
+  """Converts a vector of structures to a dataframe"""
+  #Sample the first struct to get the column names
+  column_names = [x for x in dir(vos[0]) if not x.startswith('__')]
+  data = collections.defaultdict(list)
+  for x in vos:
+    for c in column_names:
+      data[c].append(getattr(x,c))
+  return pd.DataFrame(data)
+
+
+
 def GetInductiveChargeTimes(dp):
+  """
+  For a given trip_id, determine how much time is spent waiting at stops during
+  that trip.
+
+  Args:
+    stop_prob  - Probability of stopping at a given stop with zero duration
+    dp - Data pack
+  """
   pass
     #Create a set of stops with inductive charging
       # stops = Set(select(filter(row->row[:inductive_charging]==true, dp.stops), :stop_id))
@@ -68,11 +82,22 @@ def GetNearestDepots(router, trips, stops, depots, search_radius_m=1000):
   return stops
 
 
+
 def DepotsHaveNodes(router, depots, search_radius_m=1000):
+  """Tests to see if depots are near road network nodes.
+
+  Args:
+    router: A `dispatch.Router()` object
+    depots (DataFrame): A DataFrame of depots
+    search_radius_m (int): How many metres around the depot we should search for
+                           a road network node
+
+  Returns: True if all depots are near nodes; otherwise, false.
+  """
   good = True
   for _,x in depots.iterrows():
     try:
-      road_node = router.getNearestNode(x.lat, x.lng, search_radius_m)
+      router.getNearestNode(x.lat, x.lng, search_radius_m)
     except Exception as e:
       print(e)
       print(f"Depot {x.name} ({x.lat},{x.lng} is not near a road network node!")
@@ -122,13 +147,11 @@ def main(
 
   print("Creating model...")
   model = dispatch.Model(params, trips.to_csv(), stops.to_csv())
-  ret = model.run()
-
-  code.interact(local=locals())
-
+  ret = ConvertVectorOfStructsToDataFrame(model.run())
+  return ret
+  
 
 #TODO: Used for testing
-#ARGS = ["../../temp/minneapolis", "../../data/minneapolis-saint-paul_minnesota.osm.pbf", "../../data/depots_minneapolis.csv", "/z/out"]
 #python3 sim.py "../../data/parsed_minneapolis" "../../data/minneapolis-saint-paul_minnesota.osm.pbf" "../../data/depots_minneapolis.csv" "/z/out"
 
 parser = argparse.ArgumentParser(description='Run the model TODO.')
