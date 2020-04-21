@@ -16,6 +16,9 @@ namespace py = pybind11;
 const auto dinf = std::numeric_limits<double>::infinity();
 const auto dnan = std::numeric_limits<double>::quiet_NaN();
 
+
+//TODO: Assumes that trip from trip start to depot and from depot to
+//trip start is the same length
 struct ClosestDepotInfo {
   std::vector<int>    depot_id;
   std::vector<double> time_to_depot;
@@ -24,6 +27,9 @@ struct ClosestDepotInfo {
     depot_id.resize(N, -1);
     time_to_depot.resize(N, dnan);
     dist_to_depot.resize(N, dnan);
+  }
+  std::string repr() const {
+    return std::string("<dispatch.ClosestDepotInfo of length "+std::to_string(depot_id.size())+" with properties depot_id, time_to_depot, dist_to_depot>");
   }
 };
 
@@ -76,10 +82,30 @@ struct TripInfo {
   double end_stop_id;
   double distance;
 
-  double bus_busy_start;
-  double bus_busy_end;
-  double bus_id;
-  double energy_left;
+  double  bus_busy_start = -1;
+  double  bus_busy_end   = -1;
+  int32_t bus_id         = -1;
+  int32_t start_depot_id = -1;
+  int32_t end_depot_id   = -1;
+  double  energy_left    = -1; //kW*hr
+
+  std::string repr(){
+    return std::string("<dispatch.TripInfo ")
+      + "trip_id="            +trip_id                           +", "
+      + "block_id="           +std::to_string(block_id)          +", "
+      + "start_arrival_time=" +std::to_string(start_arrival_time)+", "
+      + "start_stop_id="      +std::to_string(start_stop_id)     +", "
+      + "end_arrival_time="   +std::to_string(end_arrival_time)  +", "
+      + "end_stop_id="        +std::to_string(end_stop_id)       +", "
+      + "distance="           +std::to_string(distance)          +", "
+      + "bus_busy_start="     +std::to_string(bus_busy_start)    +", "
+      + "bus_busy_end="       +std::to_string(bus_busy_end)      +", "
+      + "bus_id="             +std::to_string(bus_id)            +", "
+      + "start_depot_id="     +std::to_string(start_depot_id)    +", "
+      + "end_depot_id="       +std::to_string(end_depot_id)      +", "
+      + "energy_left="        +std::to_string(energy_left)
+      + ">";
+  }
 };
 typedef std::vector<TripInfo> trips_t;
 
@@ -105,142 +131,130 @@ trips_t csv_trips_to_internal(const std::string &inpstr){
 class Model {
  private:
   Parameters params;
-  trips_t trips;
-  stops_t stops;
- public:
-  Model(
-    const Parameters  &params0,
-    const std::string &trips_csv,
-    const std::string &stops_csv
-  ){
-    params = params0;
-    trips  = csv_trips_to_internal(trips_csv);
-    stops  = csv_stops_to_internal(stops_csv);
+  const trips_t trips_template;
+  const stops_t stops;
+
+  static trips_t load_and_sort_trips(const std::string &trips_csv){
+    trips_t trips = csv_trips_to_internal(trips_csv);
 
     //Sort trips into blocks where each block is ordered by start arrival time
     std::stable_sort(trips.begin(), trips.end(), [](const auto &a, const auto &b){ return a.start_arrival_time<b.start_arrival_time; });
     std::stable_sort(trips.begin(), trips.end(), [](const auto &a, const auto &b){ return a.block_id<b.block_id; });
-  }
-/*
-  void runblock(){
-    function RunBlock(
-      """
-      Simulate bus movement along a route. Information about the journey is stored by
-      modifying "block".
 
-      Args:
-          block - Block of trips to be simulated (MODIFIED WITH OUTPUT)
-          dp    - A data pack
-      """
-
-      prevtrip = block[1]
-
-      //Get time, distance, and energy from depot to route
-      bstart_depot = FindClosestDepotByTime(dp.stop_ll[prevtrip.start_stop_id], dp)
-      block_energy_depot_to_start = bstart_depot[:dist] * dp.params[:kwh_per_km]
-
-      //Modify first trip of block appropriately
-      block[1] = merge(block[1], (;
-          bus_id=1,
-          energy_left = dp.params[:battery_cap_kwh] - block_energy_depot_to_start,
-          depot = bstart_depot[:id]
-      ))
-
-      if length(block)==1
-          println("Block has length 1!")
-      end
-
-      previ=1
-      //Run through all the trips in the block
-      for tripi in 1:length(block)
-          trip = block[tripi]
-          prevtrip = block[previ]
-
-          //TODO: Incorporate charging at the beginning of trip if there is a charger present
-          trip_energy = trip.distance * dp.params[:kwh_per_km]
-
-          //Subtract energy gained through inductive charging from the energetic
-          //cost of the trip
-          trip_energy -= get(dp.inductive_charge_time, trip.trip_id, 0u"kW*hr")
-
-          //TODO: Incorporate energetics of stopping sporadically along the trip
-          //trip_energy -= GetStopChargingTime(stops, trip.trip_id) //TODO: Convert to energy
-
-          //Get energetics of completing this trip and then going to a depot
-          end_depot = FindClosestDepotByTime(dp.stop_ll[trip.end_stop_id], dp)
-          energy_from_end_to_depot = end_depot[:dist] * dp.params[:kwh_per_km]
-
-          //Energy left to perform this trip
-          energy_left_this_trip = prevtrip.energy_left
-
-          //Do we have enough energy to complete this trip and then go to the depot?
-          if energy_left_this_trip - trip_energy - energy_from_end_to_depot < 0u"kW*hr"
-              //We can't complete this trip and get back to the depot, so it was better to end the block after the previous trip
-              //TODO: Assert previous trip ending stop_id is same as this trip's starting stop_id
-              //Get closest depot and energetics to the start of this trip (which is also the end of the previous trip)
-              start_depot = FindClosestDepotByTime(dp.stop_ll[trip.start_stop_id], dp)
-              energy_from_start_to_depot = start_depot[:dist] * dp.params[:kwh_per_km]
-
-              //TODO: Something bad has happened if we've reached this: we shouldn't have even made the last trip.
-              if energy_from_start_to_depot < prevtrip.energy_left
-                  println("\nEnergy trap found!")
-              end
-
-              //Alter the previous trip to note that we ended it
-              energy_left_last_trip = prevtrip.energy_left-energy_from_start_to_depot
-              charge_time = (dp.params[:battery_cap_kwh]-energy_left_last_trip)/dp.params[:charging_rate]
-              block[previ] = merge(block[previ], (;
-                  energy_left = energy_left_last_trip,
-                  bus_busy_end = prevtrip.bus_busy_end+start_depot[:time] + charge_time,
-                  depot = start_depot[:id]
-              ))
-
-              //TODO: Assumes that trip from trip start to depot and from depot to trip start is the same length
-              energy_left_this_trip = dp.params[:battery_cap_kwh]-energy_from_start_to_depot
-
-              //Alter this trip so that we start it with a fresh bus
-              block[tripi] = merge(block[tripi], (;
-                  bus_busy_start = trip.start_arrival_time - start_depot[:time],
-                  bus_id = prevtrip.bus_id+1
-              ))
-          else
-              //We have enough energy to make the trip, so let's start it!
-              block[tripi] = merge(block[tripi], (;
-                  bus_busy_start = trip.start_arrival_time,
-                  bus_id = prevtrip.bus_id
-              ))
-          end
-
-          //We have enough energy to finish the trip
-          block[tripi] = merge(block[tripi], (;
-              bus_busy_end = trip.end_arrival_time,
-              energy_left = energy_left_this_trip-trip_energy
-          ))
-
-          //This trip is now the previous trip
-          previ = tripi
-      end
-
-      //Get energetics of getting from the final trip to its depot
-      bend_depot = FindClosestDepotByTime(dp.stop_ll[prevtrip.start_stop_id], dp)
-      block_energy_end_to_depot = bend_depot[:dist] * dp.params[:kwh_per_km]
-
-      //Adjust beginning and end
-      block[1]   = merge(block[1], (;bus_busy_start = block[1].bus_busy_start - bstart_depot[:time]))
-      block[end] = merge(block[end], (; energy_left = block[end].energy_left - block_energy_end_to_depot))
+    return trips;
   }
 
-  void run(){
-    // #Add/zero out the bus_id column
-    // trips = transform(trips, :bus_id         => -1          *ones(Int64,   length(trips)))
-    // trips = transform(trips, :energy_left    => -1.0u"kW*hr"*ones(Float64, length(trips)))
-    // trips = transform(trips, :bus_busy_start => -1.0u"s"    *ones(Float64, length(trips)))
-    // trips = transform(trips, :bus_busy_end   => -1.0u"s"    *ones(Float64, length(trips)))
-    // trips = transform(trips, :depot          => -1          *ones(Int64,   length(trips)))
-  // #Add the inductive charging time to the data pack
-  // data_pack = (data_pack..., inductive_charge_time = GetInductiveChargeTimes(data_pack))
+ public:
+  Model(
+    const Parameters &params,
+    const std::string &trips_csv,
+    const std::string &stops_csv
+  ) : params(params),
+      trips_template(load_and_sort_trips(trips_csv)),
+      stops(csv_stops_to_internal(stops_csv))
+  {}
 
-  }*/
+  void update_params(const Parameters &new_params){
+    params = new_params;
+  }
+
+  ///Simulate bus movement along a route. Information about the journey is
+  ///stored by modifying the block.
+  ///
+  ///@param block_start Iterator pointing to the start of the block
+  ///@param block_end   Iterator pointing one past the end of the block
+  void run_block(trips_t::iterator &block_start, trips_t::iterator &block_end) const {
+    //Get time, distance, and energy from depot to route
+    const auto start_depot = stops.at(block_start->start_stop_id);
+    const auto energy_depot_to_start = start_depot.depot_distance*params.kwh_per_km;
+
+    block_start->start_depot_id = start_depot.depot_id;
+    block_start->energy_left    = params.battery_cap_kwh - energy_depot_to_start;
+    block_start->bus_id         = 1;
+
+    //Run through all the trips in the block
+    auto prevtrip=block_start;
+    for(auto trip=block_start;trip!=block_end;trip++){
+      //TODO: Incorporate charging at the beginning of trip if there is a charger present
+      auto trip_energy = trip->distance * params.kwh_per_km;
+
+      //Subtract energy gained through inductive charging from the energetic
+      //cost of the trip TODO
+      // trip_energy -= get(dp.inductive_charge_time, trip->trip_id, 0u"kW*hr")
+
+      //TODO: Incorporate energetics of stopping sporadically along the trip
+      //trip_energy -= GetStopChargingTime(stops, trip->trip_id) //TODO: Convert to energy
+
+      //Get energetics of completing this trip and then going to a depot
+      const auto end_depot = stops.at(trip->end_stop_id);
+      const auto energy_from_end_to_depot = end_depot.depot_distance * params.kwh_per_km;
+
+      //Energy left to perform this trip
+      auto energy_left_this_trip = prevtrip->energy_left;
+
+      //Do we have enough energy to complete this trip and then go to the depot?
+      if(energy_left_this_trip - trip_energy - energy_from_end_to_depot < 0){
+        //We can't complete this trip and get back to the depot, so it was
+        //better to end the block after the previous trip
+
+        //TODO: Assert previous trip ending stop_id is same as this trip's
+        //starting stop_id
+
+        //Get closest depot and energetics to the start of this trip (which is
+        //also the end of the previous trip)
+        const auto start_depot = stops.at(trip->start_stop_id);
+        const auto energy_from_start_to_depot = start_depot.depot_distance*params.kwh_per_km;
+
+        //TODO: Something bad has happened if we've reached this: we shouldn't have even made the last trip->
+        if(energy_from_start_to_depot < prevtrip->energy_left)
+          std::cerr<<"\nEnergy trap found!"<<std::endl;
+
+        //Alter the previous trip to note that we ended it
+        prevtrip->energy_left = prevtrip->energy_left-energy_from_start_to_depot;
+        const auto charge_time = (params.battery_cap_kwh-prevtrip->energy_left)/params.charging_rate;
+        prevtrip->bus_busy_end += start_depot.depot_time + charge_time;
+        prevtrip->end_depot_id = start_depot.depot_id;
+
+        //Now that we've closed out the old bus/trip let's deal with the new one
+        energy_left_this_trip = params.battery_cap_kwh-energy_from_start_to_depot;
+        trip->bus_busy_start = trip->start_arrival_time - start_depot.depot_time;
+        trip->bus_id = prevtrip->bus_id+1;
+      } else {
+        trip->bus_busy_start = trip->start_arrival_time;
+        trip->bus_id = prevtrip->bus_id;
+      }
+
+      //We have enough energy to finish the trip
+      trip->bus_busy_end = trip->end_arrival_time;
+      trip->energy_left = energy_left_this_trip-trip_energy;
+      prevtrip = trip;
+    }
+
+    //Get energetics of getting from the final trip to its depot
+    const auto block_end_depot           = stops.at(prevtrip->end_stop_id);
+    const auto block_energy_end_to_depot = block_end_depot.depot_distance * params.kwh_per_km;
+
+    //Adjust beginning and end
+    block_start->bus_busy_start -= start_depot.depot_time;
+    prevtrip->energy_left       -= block_energy_end_to_depot;
+    prevtrip->bus_busy_start    += block_end_depot.depot_time;
+  }
+
+  trips_t run() const {
+    auto trips = trips_template;
+    auto start_of_block = trips.begin();
+    for(auto trip=trips.begin();trip!=trips.end();trip++){
+      //Have we found a new block?
+      if(trip->trip_id!=start_of_block->trip_id || trip->block_id!=start_of_block->block_id){
+        //If so, the trip is a valid end iterator for the previous block
+        run_block(start_of_block, trip);
+        //Current trip starts a new block
+        start_of_block=trip;
+      }
+    }
+
+    return trips;
+  }
 };
 
 
@@ -295,6 +309,23 @@ PYBIND11_MODULE(dispatch, m) {
     .def("getNearestNode", &Router::getNearestNode)
     .def("save_ch",        &Router::save_ch);
 
+  py::class_<TripInfo>(m, "TripInfo")
+    .def(py::init<>())
+    .def_readwrite("trip_id",            &TripInfo::trip_id)
+    .def_readwrite("block_id",           &TripInfo::block_id)
+    .def_readwrite("start_arrival_time", &TripInfo::start_arrival_time)
+    .def_readwrite("start_stop_id",      &TripInfo::start_stop_id)
+    .def_readwrite("end_arrival_time",   &TripInfo::end_arrival_time)
+    .def_readwrite("end_stop_id",        &TripInfo::end_stop_id)
+    .def_readwrite("distance",           &TripInfo::distance)
+    .def_readwrite("bus_busy_start",     &TripInfo::bus_busy_start)
+    .def_readwrite("bus_busy_end",       &TripInfo::bus_busy_end)
+    .def_readwrite("bus_id",             &TripInfo::bus_id)
+    .def_readwrite("start_depot_id",     &TripInfo::start_depot_id)
+    .def_readwrite("end_depot_id",       &TripInfo::end_depot_id)
+    .def_readwrite("energy_left",        &TripInfo::energy_left)
+    .def("__repr__",                     &TripInfo::repr);
+
   py::class_<Parameters>(m, "Parameters")
     .def(py::init<>())
     .def_readwrite("battery_cap_kwh",        &Parameters::battery_cap_kwh)
@@ -308,10 +339,14 @@ PYBIND11_MODULE(dispatch, m) {
     .def(py::init<const int>())
     .def_readwrite("depot_id",      &ClosestDepotInfo::depot_id)
     .def_readwrite("time_to_depot", &ClosestDepotInfo::time_to_depot)
-    .def_readwrite("dist_to_depot", &ClosestDepotInfo::dist_to_depot);
+    .def_readwrite("dist_to_depot", &ClosestDepotInfo::dist_to_depot)
+    .def("__repr__",                &ClosestDepotInfo::repr);
+
 
   py::class_<Model>(m, "Model")
-    .def(py::init<const Parameters&, const std::string&, const std::string&>());
+    .def(py::init<const Parameters&, const std::string&, const std::string&>())
+    .def("run", &Model::run)
+    .def("update_params", &Model:: update_params);
 
   m.def("GetClosestDepot", &GetClosestDepot, "TODO");
 }

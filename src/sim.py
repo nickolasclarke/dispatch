@@ -121,7 +121,8 @@ def main(
   }
 
   print("Creating model...")
-  dispatch.Model(params, trips.to_csv(), stops.to_csv())
+  model = dispatch.Model(params, trips.to_csv(), stops.to_csv())
+  ret = model.run()
 
   code.interact(local=locals())
 
