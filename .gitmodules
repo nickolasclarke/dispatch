@@ -7,6 +7,3 @@
 [submodule "submodules/protozero"]
 	path = submodules/protozero
 	url = git@github.com:mapbox/protozero.git
-[submodule "submodules/pybind11"]
-	path = submodules/pybind11
-	url = https://github.com/pybind/pybind11.git
