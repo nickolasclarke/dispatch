@@ -82,11 +82,11 @@ struct TripInfo {
   double end_stop_id;
   double distance;
 
-  double  bus_busy_start = -1;
-  double  bus_busy_end   = -1;
-  int32_t bus_id         = -1;
-  int32_t start_depot_id = -1;
-  int32_t end_depot_id   = -1;
+  double  bus_busy_start = -1; //Time at which the bus becomes busy on this trip
+  double  bus_busy_end   = -1; //Time at which the bus becomes unbusy on this trip
+  int32_t bus_id         = -1; //Bus id (unique across all trips) of bus serving this trip
+  int32_t start_depot_id = -1; //ID of the depot from which the bus leaves to start this trip. -1 indicates no depot (starts from some previous trip)
+  int32_t end_depot_id   = -1; //ID of the depot to which the bus goes when it's done with this trip. -1 indicates no depot (continues on to another trip)
   double  energy_left    = -1; //kW*hr
 
   std::string repr(){
