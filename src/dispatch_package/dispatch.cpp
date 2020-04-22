@@ -225,8 +225,6 @@ class Model {
 
     for(auto trip=block_start;trip!=block_end;trip++){ // For each trip in block
       if(new_bus){
-        // Start a new bus
-        next_bus_id++;
         // Initially our energy is battery capacity minus what we need to get to the trip
         energy_left = params.battery_cap_kwh - nrg_to_depot(trip->start_stop_id);
         // Bus becomes busy when we leave the depot
@@ -286,7 +284,7 @@ class Model {
     int32_t next_bus_id = 1;
     for(auto trip=trips.begin();trip!=trips.end();trip++){
       //Have we found a new block?
-      if(trip->trip_id!=start_of_block->trip_id || trip->block_id!=start_of_block->block_id){
+      if(trip->block_id!=start_of_block->block_id){
         //If so, the trip is a valid end iterator for the previous block
         run_block(start_of_block, trip, next_bus_id);
         //Current trip starts a new block
