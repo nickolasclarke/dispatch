@@ -12,7 +12,7 @@ Prerequisites:
 
 Acquire necessary tools with:
 
-    sudo apt install cmake zlib1g-dev
+    sudo apt install cmake zlib1g-dev pybind11-dev
 
 Clone the repo with all neccessary submodules
 
