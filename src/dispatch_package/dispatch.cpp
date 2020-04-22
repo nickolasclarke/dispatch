@@ -250,7 +250,7 @@ class Model {
       // Do we have enough energy to do this trip and get to a depot?    
       if(energy_left<trip_energy+energy_end_to_depot){
         // No: That's a problem. Raise a flag. Do the trip and end negative.
-        std::cerr<<"\nEnergy trap found!";
+        std::cerr<<"\nEnergy trap found at trip="<<trip->trip_id<<" block_id="<<trip->block_id<<std::endl;
         end_trip(trip, energy_left - trip_energy - energy_end_to_depot);
         new_bus = true;
         continue;

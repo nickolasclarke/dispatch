@@ -148,6 +148,7 @@ def main(
   print("Creating model...")
   model = dispatch.Model(params, trips.to_csv(), stops.to_csv())
   ret = ConvertVectorOfStructsToDataFrame(model.run())
+  code.interact(local=dict(globals(), **locals())) 
   return ret
   
 
