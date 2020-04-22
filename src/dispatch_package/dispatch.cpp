@@ -232,7 +232,7 @@ class Model {
         // Bus becomes busy when we leave the depot
         trip->bus_busy_start = trip->start_arrival_time - time_to_depot(trip->start_stop_id);
         // Identify the bus
-        trip->bus_id = next_bus_id;   
+        trip->bus_id = next_bus_id++;   
         // Note the depot
         trip->start_depot_id = depot_id(trip->start_stop_id);
         new_bus = false;
