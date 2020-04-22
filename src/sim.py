@@ -147,9 +147,11 @@ def main(
 
   print("Creating model...")
   model = dispatch.Model(params, trips.to_csv(), stops.to_csv())
-  ret = ConvertVectorOfStructsToDataFrame(model.run())
+  trips = model.run()
+  tripsdf = ConvertVectorOfStructsToDataFrame(trips)
+  buses = dispatch.count_buses(trips)
   # code.interact(local=dict(globals(), **locals())) #TODO: Remove
-  return ret
+  return tripsdf, buses
   
 
 #TODO: Used for testing
@@ -170,4 +172,4 @@ print(f"output_filename:    {args.output_filename}")
 print("Parsing OSM data into router...")
 router = dispatch.Router(args.osm_data)
 
-bus_assignments = main(args.parsed_gtfs_prefix, router, args.depots_filename, args.output_filename)
+bus_assignments, bus_counts = main(args.parsed_gtfs_prefix, router, args.depots_filename, args.output_filename)

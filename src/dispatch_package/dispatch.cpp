@@ -1,21 +1,26 @@
 #include <algorithm>
 #include <iostream>
 #include <limits>
+#include <queue>
 #include <random>
 #include <sstream>
 #include <stdexcept>
 #include <tuple>
+#include <unordered_map>
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "routingkit.hpp"
 #include "csv.hpp"
+#include "routingkit.hpp"
+#include "utility.hpp"
 
 namespace py = pybind11;
 
 const auto dinf = std::numeric_limits<double>::infinity();
 const auto dnan = std::numeric_limits<double>::quiet_NaN();
+
+typedef int32_t depot_id_t;
 
 ////////////////////////////////
 //RANDOM NUMBERS
@@ -51,9 +56,9 @@ double r_uniform(double from, double thru){
 //TODO: Assumes that trip from trip start to depot and from depot to
 //trip start is the same length
 struct ClosestDepotInfo {
-  std::vector<int>    depot_id;
-  std::vector<double> time_to_depot;
-  std::vector<double> dist_to_depot;
+  std::vector<depot_id_t> depot_id;
+  std::vector<double>     time_to_depot;
+  std::vector<double>     dist_to_depot;
   ClosestDepotInfo(const int N){
     depot_id.resize(N, -1);
     time_to_depot.resize(N, dnan);
@@ -64,6 +69,8 @@ struct ClosestDepotInfo {
   }
 };
 
+
+
 struct Parameters {
   double battery_cap_kwh         = 200.0; //kW*hr
   double kwh_per_km              = 1.2;   //kW*hr/km
@@ -73,13 +80,11 @@ struct Parameters {
   double zstops_average_time     = 10;    //seconds
 };
 
-
-
 struct StopInfo {
-  size_t stop_id;
-  int    depot_id;
-  double depot_time;
-  double depot_distance;
+  size_t     stop_id;
+  depot_id_t depot_id;
+  double     depot_time;
+  double     depot_distance;
 };
 typedef std::unordered_map<size_t, StopInfo> stops_t;
 
@@ -113,12 +118,12 @@ struct TripInfo {
   double end_stop_id;
   double distance;
 
-  double  bus_busy_start = -1; //Time at which the bus becomes busy on this trip
-  double  bus_busy_end   = -1; //Time at which the bus becomes unbusy on this trip
-  int32_t bus_id         = -1; //Bus id (unique across all trips) of bus serving this trip
-  int32_t start_depot_id = -1; //ID of the depot from which the bus leaves to start this trip. -1 indicates no depot (starts from some previous trip)
-  int32_t end_depot_id   = -1; //ID of the depot to which the bus goes when it's done with this trip. -1 indicates no depot (continues on to another trip)
-  double  energy_left    = -1; //kW*hr
+  double  bus_busy_start    = -1; //Time at which the bus becomes busy on this trip
+  double  bus_busy_end      = -1; //Time at which the bus becomes unbusy on this trip
+  int32_t bus_id            = -1; //Bus id (unique across all trips) of bus serving this trip
+  depot_id_t start_depot_id = -1; //ID of the depot from which the bus leaves to start this trip. -1 indicates no depot (starts from some previous trip)
+  depot_id_t end_depot_id   = -1; //ID of the depot to which the bus goes when it's done with this trip. -1 indicates no depot (continues on to another trip)
+  double  energy_left       = -1; //kW*hr
 
   std::string repr(){
     return std::string("<dispatch.TripInfo ")
@@ -155,6 +160,39 @@ trips_t csv_trips_to_internal(const std::string &inpstr){
   }
 
   return trips;
+}
+
+
+
+
+
+std::unordered_map<depot_id_t, int> count_buses(const trips_t &trips){
+  //Tupe of Time, Depot, Count(-1 or 1)
+  typedef std::tuple<double, depot_id_t, int8_t> DepotEvent;
+  
+  //Load the priority queue
+  std::priority_queue<DepotEvent, std::vector<DepotEvent>, std::greater<DepotEvent>> pq;
+  for(const auto &t: trips){
+    if(t.start_depot_id!=-1)
+      pq.emplace(t.bus_busy_start, t.start_depot_id, 1); //Going out
+    if(t.end_depot_id!=-1)
+      pq.emplace(t.bus_busy_end,   t.end_depot_id,  -1);  //Coming in
+  }
+
+  //Run the priority queue
+  std::unordered_map<depot_id_t, RangeTracking<int>> max_buses;
+  while(!pq.empty()){
+    const auto c = pq.top();
+    pq.pop();
+    max_buses[std::get<1>(c)] += std::get<2>(c);
+  }
+
+  //Get the counts
+  std::unordered_map<depot_id_t, int> max_buses_out;
+  for(const auto &mb: max_buses)
+    max_buses_out[mb.first] = mb.second.max();
+
+  return max_buses_out;
 }
 
 
@@ -234,6 +272,7 @@ class Model {
         // Note the depot
         trip->start_depot_id = depot_id(trip->start_stop_id);
         new_bus = false;
+        std::cerr<<"Start a new trip.\n";
       } else {
         // Set trip information if it hasn't already been done (by starting a new bus)
         trip->bus_id = next_bus_id;
@@ -248,7 +287,7 @@ class Model {
       // Do we have enough energy to do this trip and get to a depot?    
       if(energy_left<trip_energy+energy_end_to_depot){
         // No: That's a problem. Raise a flag. Do the trip and end negative.
-        std::cerr<<"\nEnergy trap found at trip="<<trip->trip_id<<" block_id="<<trip->block_id<<std::endl;
+        std::cerr<<"\tEnergy trap found at trip="<<trip->trip_id<<" block_id="<<trip->block_id<<std::endl;
         end_trip(trip, energy_left - trip_energy - energy_end_to_depot);
         new_bus = true;
         continue;
@@ -259,6 +298,7 @@ class Model {
       // If there is no next trip
       if(next_trip==block_end){
         // Finish this trip and go to the nearest depot
+        std::cerr<<"\tNo next trip. End it now.\n";
         end_trip(trip, energy_left - trip_energy - energy_end_to_depot);
         return;
       }
@@ -268,10 +308,12 @@ class Model {
       const auto energy_next_end_to_depot = nrg_to_depot(next_trip->end_stop_id);
       if(energy_left<trip_energy + next_trip_energy + energy_next_end_to_depot){
         // NO: Do just this trip and then go to a depot.
+        std::cerr<<"\tEnd the trip.\n";
         end_trip(trip, energy_left - trip_energy - energy_end_to_depot);
         new_bus = true;
       } else {
         // YES: Do this trip and continue on to next iteration of the loop
+        std::cerr<<"\tContinue the trip.\n";
         trip->energy_left = energy_left = energy_left - trip_energy;
         new_bus = false;
       }
@@ -390,4 +432,6 @@ PYBIND11_MODULE(dispatch, m) {
     .def("update_params", &Model:: update_params);
 
   m.def("GetClosestDepot", &GetClosestDepot, "TODO");
+
+  m.def("count_buses", &count_buses, "TODO");
 }
