@@ -3,8 +3,6 @@ cmake_minimum_required(VERSION 3.10)
 find_package(Threads)
 find_package(ZLIB)
 
-add_subdirectory(pybind11 EXCLUDE_FROM_ALL)
-
 add_library(routingkit
   RoutingKit/src/bit_select.cpp 
   RoutingKit/src/bit_vector.cpp 
