@@ -7,3 +7,6 @@
 [submodule "submodules/protozero"]
 	path = submodules/protozero
 	url = git@github.com:mapbox/protozero.git
+[submodule "submodules/units"]
+	path = submodules/units
+	url = https://github.com/nholthaus/units.git
