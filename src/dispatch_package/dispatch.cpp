@@ -293,6 +293,8 @@ class Model {
         start_of_block=trip;
       }
     }
+    //Run the last block
+    run_block(start_of_block, trips.end(), next_bus_id);
 
     return trips;
   }
