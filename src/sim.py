@@ -126,7 +126,7 @@ def main(
 
   params = dispatch.Parameters()
   params.battery_cap_kwh         = 240.0 #u"kW*hr",
-  params.kwh_per_km              = 1.2   #u"kW*hr/km",
+  params.kwh_per_km              = 1.2/1000   #u"kW*hr/km", #TODO: Check units everywhere
   params.charging_rate           = 150.0 #u"kW",
   params.search_radius           = 1.0   #u"km",
   params.zstops_frac_stopped_at  = 0.2
@@ -148,6 +148,7 @@ def main(
   print("Creating model...")
   model = dispatch.Model(params, trips.to_csv(), stops.to_csv())
   ret = ConvertVectorOfStructsToDataFrame(model.run())
+  # code.interact(local=dict(globals(), **locals())) #TODO: Remove
   return ret
   
 
