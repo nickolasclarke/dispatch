@@ -189,6 +189,24 @@ class Model {
     params = new_params;
   }
 
+  auto nrg_to_depot(int32_t stop_id) const {
+    return stops.at(stop_id).depot_distance * params.kwh_per_km;
+  }
+
+  auto time_to_depot(int32_t stop_id) const {
+    return stops.at(stop_id).depot_time;
+  }
+
+  auto depot_id(int32_t stop_id) const {
+    return stops.at(stop_id).depot_id;
+  }
+
+  void end_trip(trips_t::iterator trip, double energy_left) const {
+    trip->energy_left = energy_left;
+    trip->bus_busy_end = trip->end_arrival_time + time_to_depot(trip->end_stop_id);
+    trip->end_depot_id = depot_id(trip->end_stop_id);
+  }
+
   ///Simulate bus movement along a route. Information about the journey is
   ///stored by modifying the block.
   ///
@@ -202,80 +220,64 @@ class Model {
     trips_t::iterator block_end, 
     int32_t &next_bus_id
   ) const {
-    //Get time, distance, and energy from depot to route
-    const auto start_depot = stops.at(block_start->start_stop_id);
-    const auto energy_depot_to_start = start_depot.depot_distance*params.kwh_per_km;
+    bool new_bus = true;
+    auto energy_left = params.battery_cap_kwh;
 
-    block_start->start_depot_id = start_depot.depot_id;
-    block_start->energy_left    = params.battery_cap_kwh - energy_depot_to_start;
-    block_start->bus_id         = next_bus_id++;
-
-    //Run through all the trips in the block
-    auto prevtrip=block_start;
-    for(auto trip=block_start;trip!=block_end;trip++){
-      //TODO: Incorporate charging at the beginning of trip if there is a charger present
-      auto trip_energy = trip->distance * params.kwh_per_km;
-
-      //Subtract energy gained through inductive charging from the energetic
-      //cost of the trip TODO
-      // trip_energy -= get(dp.inductive_charge_time, trip->trip_id, 0u"kW*hr")
-
-      //TODO: Incorporate energetics of stopping sporadically along the trip
-      //trip_energy -= GetStopChargingTime(stops, trip->trip_id) //TODO: Convert to energy
-
-      //Get energetics of completing this trip and then going to a depot
-      const auto end_depot = stops.at(trip->end_stop_id);
-      const auto energy_from_end_to_depot = end_depot.depot_distance * params.kwh_per_km;
-
-      //Energy left to perform this trip
-      auto energy_left_this_trip = prevtrip->energy_left;
-
-      //Do we have enough energy to complete this trip and then go to the depot?
-      if(energy_left_this_trip - trip_energy - energy_from_end_to_depot < 0){
-        //We can't complete this trip and get back to the depot, so it was
-        //better to end the block after the previous trip
-
-        //TODO: Assert previous trip ending stop_id is same as this trip's
-        //starting stop_id
-
-        //Get closest depot and energetics to the start of this trip (which is
-        //also the end of the previous trip)
-        const auto start_depot = stops.at(trip->start_stop_id);
-        const auto energy_from_start_to_depot = start_depot.depot_distance*params.kwh_per_km;
-
-        //TODO: Something bad has happened if we've reached this: we shouldn't have even made the last trip->
-        if(energy_from_start_to_depot < prevtrip->energy_left)
-          std::cerr<<"\nEnergy trap found!"<<std::endl;
-
-        //Alter the previous trip to note that we ended it
-        prevtrip->energy_left = prevtrip->energy_left-energy_from_start_to_depot;
-        const auto charge_time = (params.battery_cap_kwh-prevtrip->energy_left)/params.charging_rate;
-        prevtrip->bus_busy_end += start_depot.depot_time + charge_time;
-        prevtrip->end_depot_id = start_depot.depot_id;
-
-        //Now that we've closed out the old bus/trip let's deal with the new one
-        energy_left_this_trip = params.battery_cap_kwh-energy_from_start_to_depot;
-        trip->bus_busy_start = trip->start_arrival_time - start_depot.depot_time;
-        trip->bus_id = next_bus_id++;
+    for(auto trip=block_start;trip!=block_end;trip++){ // For each trip in block
+      if(new_bus){
+        // Start a new bus
+        next_bus_id++;
+        // Initially our energy is battery capacity minus what we need to get to the trip
+        energy_left = params.battery_cap_kwh - nrg_to_depot(trip->start_stop_id);
+        // Bus becomes busy when we leave the depot
+        trip->bus_busy_start = trip->start_arrival_time - time_to_depot(trip->start_stop_id);
+        // Identify the bus
+        trip->bus_id = next_bus_id;   
+        // Note the depot
+        trip->start_depot_id = depot_id(trip->start_stop_id);
+        new_bus = false;
       } else {
+        // Set trip information if it hasn't already been done (by starting a new bus)
+        trip->bus_id = next_bus_id;
         trip->bus_busy_start = trip->start_arrival_time;
-        trip->bus_id = prevtrip->bus_id;
       }
 
-      //We have enough energy to finish the trip
-      trip->bus_busy_end = trip->end_arrival_time;
-      trip->energy_left = energy_left_this_trip-trip_energy;
-      prevtrip = trip;
+      // Note the next_trip
+      const auto next_trip = trip+1;
+      const auto trip_energy = trip->distance * params.kwh_per_km;
+      const auto energy_end_to_depot = nrg_to_depot(trip->end_stop_id);
+
+      // Do we have enough energy to do this trip and get to a depot?    
+      if(energy_left<trip_energy+energy_end_to_depot){
+        // No: That's a problem. Raise a flag. Do the trip and end negative.
+        std::cerr<<"\nEnergy trap found!";
+        end_trip(trip, energy_left - trip_energy - energy_end_to_depot);
+        new_bus = true;
+        continue;
+      }
+
+      // Note: We have enough energy to complete the trip!
+
+      // If there is no next trip
+      if(next_trip==block_end){
+        // Finish this trip and go to the nearest depot
+        end_trip(trip, energy_left - trip_energy - energy_end_to_depot);
+        return;
+      }
+
+      // Do we have enough energy to do a trip after this?
+      const auto next_trip_energy = next_trip->distance * params.kwh_per_km;
+      const auto energy_next_end_to_depot = nrg_to_depot(next_trip->end_stop_id);
+      if(energy_left<trip_energy + next_trip_energy + energy_next_end_to_depot){
+        // NO: Do just this trip and then go to a depot.
+        end_trip(trip, energy_left - trip_energy - energy_end_to_depot);
+        new_bus = true;
+      } else {
+        // YES: Do this trip and continue on to next iteration of the loop
+        trip->energy_left = energy_left = energy_left - trip_energy;
+        new_bus = false;
+      }
     }
-
-    //Get energetics of getting from the final trip to its depot
-    const auto block_end_depot           = stops.at(prevtrip->end_stop_id);
-    const auto block_energy_end_to_depot = block_end_depot.depot_distance * params.kwh_per_km;
-
-    //Adjust beginning and end
-    block_start->bus_busy_start -= start_depot.depot_time;
-    prevtrip->energy_left       -= block_energy_end_to_depot;
-    prevtrip->bus_busy_start    += block_end_depot.depot_time;
   }
 
   trips_t run() const {
