@@ -194,14 +194,21 @@ class Model {
   ///
   ///@param block_start Iterator pointing to the start of the block
   ///@param block_end   Iterator pointing one past the end of the block
-  void run_block(trips_t::iterator &block_start, trips_t::iterator &block_end) const {
+  ///@param next_bus_id ID to assign to the next bus that's scheduled. Note that
+  ///                   this is passed by reference because it is incremented 
+  ///                   across all the blocks `run_block` is called on.
+  void run_block(
+    trips_t::iterator block_start,
+    trips_t::iterator block_end, 
+    int32_t &next_bus_id
+  ) const {
     //Get time, distance, and energy from depot to route
     const auto start_depot = stops.at(block_start->start_stop_id);
     const auto energy_depot_to_start = start_depot.depot_distance*params.kwh_per_km;
 
     block_start->start_depot_id = start_depot.depot_id;
     block_start->energy_left    = params.battery_cap_kwh - energy_depot_to_start;
-    block_start->bus_id         = 1;
+    block_start->bus_id         = next_bus_id++;
 
     //Run through all the trips in the block
     auto prevtrip=block_start;
@@ -249,7 +256,7 @@ class Model {
         //Now that we've closed out the old bus/trip let's deal with the new one
         energy_left_this_trip = params.battery_cap_kwh-energy_from_start_to_depot;
         trip->bus_busy_start = trip->start_arrival_time - start_depot.depot_time;
-        trip->bus_id = prevtrip->bus_id+1;
+        trip->bus_id = next_bus_id++;
       } else {
         trip->bus_busy_start = trip->start_arrival_time;
         trip->bus_id = prevtrip->bus_id;
@@ -274,11 +281,12 @@ class Model {
   trips_t run() const {
     auto trips = trips_template;
     auto start_of_block = trips.begin();
+    int32_t next_bus_id = 1;
     for(auto trip=trips.begin();trip!=trips.end();trip++){
       //Have we found a new block?
       if(trip->trip_id!=start_of_block->trip_id || trip->block_id!=start_of_block->block_id){
         //If so, the trip is a valid end iterator for the previous block
-        run_block(start_of_block, trip);
+        run_block(start_of_block, trip, next_bus_id);
         //Current trip starts a new block
         start_of_block=trip;
       }
