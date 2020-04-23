@@ -24,21 +24,28 @@ Set up a conda environment and install necessary packages:
     conda activate rise
     conda install pip
     pip install -r requirements.txt
-    
+
 
 Set up Julia env and install required julia packages. In Julia's `Pkg` manager
 
     activate .
     instantiate
 
-Now build with the following
+To build with protections (some loss of speed), use the following
+
+    mkdir build
+    cd build
+    cmake -DCMAKE_BUILD_TYPE=RelWithDebInfoAndAssert -DCMAKE_INSTALL_PREFIX=`pwd` ..
+    make
+    make install
+
+To build with fewer protections (more speed), use the following
 
     mkdir build
     cd build
     cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=`pwd` ..
     make
     make install
-
 
 
 Example Usage

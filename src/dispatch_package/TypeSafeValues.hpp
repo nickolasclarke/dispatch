@@ -32,31 +32,31 @@ class TSV {
     void invalidate() { m_val = invalid_value; }
 
     value operator+(const value &o) const {
-        assert(valid() && o.valid());
+        assert(is_valid() && o.is_valid());
         value temp; temp.m_val=m_val+o.m_val; return temp;
     }
     value operator-(const value &o) const {
-        assert(valid() && o.valid());
+        assert(is_valid() && o.is_valid());
         value temp; temp.m_val=m_val-o.m_val; return temp;
     }
     value& operator+=(const value &o){
-        assert(valid && o.valid());
+        assert(is_valid && o.is_valid());
         m_val+=o.m_val; return *this;
     }
     value& operator-=(const value &o){
-        assert(valid && o.valid());
+        assert(is_valid && o.is_valid());
         m_val-=o.m_val; return *this;
     }
     value& operator++(){
-        assert(valid());
+        assert(is_valid());
         m_val++; return *this;
     }
     value& operator--(){
-        assert(valid());
+        assert(is_valid());
         m_val--; return *this;
     }
     value& operator-(){
-        assert(valid());
+        assert(is_valid());
         m_val = -m_val;
         return *this;
     }
