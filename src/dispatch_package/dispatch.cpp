@@ -6,25 +6,31 @@
 #include <sstream>
 #include <stdexcept>
 #include <tuple>
-#include <unordered_map>
 
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include "pybind11_conversions.hpp"
 
+<<<<<<< HEAD
 #include "csv.hpp"
 #include "identifiers.hpp"
+=======
+#include "data_frames.hpp"
+#include "data_structures.hpp"
+>>>>>>> 9c975f9... Rearranging code
 #include "routingkit.hpp"
 #include "utility.hpp"
-#include "units.hpp"
 
 namespace py = pybind11;
 
+<<<<<<< HEAD
 const auto dinf = std::numeric_limits<double>::infinity();
 const auto dnan = std::numeric_limits<double>::quiet_NaN();
 
 typedef std::string trip_id_t;
 
+=======
+>>>>>>> 9c975f9... Rearranging code
 ////////////////////////////////
 //RANDOM NUMBERS
 ////////////////////////////////
@@ -56,167 +62,10 @@ double r_uniform(double from, double thru){
 
 
 
-//TODO: Assumes that trip from trip start to depot and from depot to
-//trip start is the same length
-struct ClosestDepotInfo {
-  std::vector<depot_id_t> depot_id;
-  std::vector<double>     time_to_depot;
-  std::vector<double>     dist_to_depot;
-  ClosestDepotInfo(const int N){
-    depot_id.resize(N, depot_id_t::invalid());
-    time_to_depot.resize(N, dnan);
-    dist_to_depot.resize(N, dnan);
-  }
-  std::string repr() const {
-    return std::string("<dispatch.ClosestDepotInfo of length "+std::to_string(depot_id.size())+" with properties depot_id, time_to_depot, dist_to_depot>");
-  }
-};
-
-
-
-struct Parameters {
-  kilowatt_hours battery_cap_kwh       = 200.0_kWh;
-  kWh_per_km     kwh_per_km            = 1.2_kWh_per_km;
-  dollars        bus_cost              = 500'000.0_dollars;
-  dollars        battery_cost_per_kwh  = 100.0_dollars;
-  dollars        depot_charger_cost    = 50'000.0_dollars;
-  kilowatts      depot_charger_rate    = 125.0_kW;
-  dollars        nondepot_charger_cost = 600'000.0_dollars;
-  kilowatts      nondepot_charger_rate = 500.0_kW;
-  int32_t        chargers_per_depot    = 1;
-  std::string repr() const {
-    return std::string("<dispatch.Parameters ")
-      + "battery_cap_kwh="         + std::to_string(battery_cap_kwh)
-      + ", kwh_per_km="            + std::to_string(kwh_per_km)
-      + ", bus_cost="              + std::to_string(bus_cost)
-      + ", battery_cost_per_kwh="  + std::to_string(battery_cost_per_kwh)
-      + ", depot_charger_cost="    + std::to_string(depot_charger_cost)
-      + ", depot_charger_rate="    + std::to_string(depot_charger_rate)
-      + ", nondepot_charger_cost=" + std::to_string(nondepot_charger_cost)
-      + ", nondepot_charger_rate=" + std::to_string(nondepot_charger_rate)
-      + ", chargers_per_depot="    + std::to_string(chargers_per_depot)
-      + ">";
-  }
-};
-
-struct StopInfo {
-  stop_id_t  stop_id;
-  depot_id_t depot_id;
-  seconds    depot_time;
-  meters     depot_distance;
-};
-typedef std::unordered_map<stop_id_t, StopInfo> stops_t;
-
-stops_t csv_stops_to_internal(const std::string &inpstr){
-  stops_t stops;
-
-  std::stringstream ss;
-  ss<<inpstr;
-
-  io::CSVReader<4> in("stops.csv", ss);
-  in.read_header(io::ignore_extra_column, "stop_id", "depot_id", "depot_time", "depot_distance");
-
-  stop_id_t::type  stop_id_in;
-  depot_id_t::type depot_id;
-  seconds::type    depot_time;
-  meters::type     depot_distance;
-  while(in.read_row(stop_id_in, depot_id, depot_time, depot_distance)){
-    stop_id_t stop_id = stop_id_t::make(stop_id_in);
-    if(stops.count(stop_id)!=0)
-      throw std::runtime_error("stop_id was in the table twice!");
-    stops[stop_id] = StopInfo{
-      stop_id,
-      depot_id_t::make(depot_id),
-      seconds::make(depot_time),
-      meters::make(depot_distance)
-    };
-  }
-
-  return stops;
-}
-
-
-
-
-
-
-
-
-struct TripInfo {
-  trip_id_t   trip_id;
-  block_id_t  block_id;
-  seconds     start_arrival_time;
-  stop_id_t   start_stop_id;
-  seconds     end_arrival_time;
-  stop_id_t   end_stop_id;
-  meters      distance;
-
-  seconds        bus_busy_start = seconds::invalid();        //Time at which the bus becomes busy on this trip
-  seconds        bus_busy_end   = seconds::invalid();        //Time at which the bus becomes unbusy on this trip
-  int32_t        bus_id         = -1;                        //Bus id (unique across all trips) of bus serving this trip
-  depot_id_t     start_depot_id = depot_id_t::invalid();     //ID of the depot from which the bus leaves to start this trip. -1 indicates no depot (starts from some previous trip)
-  depot_id_t     end_depot_id   = depot_id_t::invalid();     //ID of the depot to which the bus goes when it's done with this trip. -1 indicates no depot (continues on to another trip)
-  kilowatt_hours energy_left    = kilowatt_hours::invalid();
-
-  std::string repr(){
-    return std::string("<dispatch.TripInfo ")
-      + "trip_id="            +trip_id                           +", "
-      + "block_id="           +std::to_string(block_id)          +", "
-      + "start_arrival_time=" +std::to_string(start_arrival_time)+", "
-      + "start_stop_id="      +std::to_string(start_stop_id)     +", "
-      + "end_arrival_time="   +std::to_string(end_arrival_time)  +", "
-      + "end_stop_id="        +std::to_string(end_stop_id)       +", "
-      + "distance="           +std::to_string(distance)          +", "
-      + "bus_busy_start="     +std::to_string(bus_busy_start)    +", "
-      + "bus_busy_end="       +std::to_string(bus_busy_end)      +", "
-      + "bus_id="             +std::to_string(bus_id)            +", "
-      + "start_depot_id="     +std::to_string(start_depot_id)    +", "
-      + "end_depot_id="       +std::to_string(end_depot_id)      +", "
-      + "energy_left="        +std::to_string(energy_left)
-      + ">";
-  }
-};
-typedef std::vector<TripInfo> trips_t;
-
-trips_t csv_trips_to_internal(const std::string &inpstr){
-  trips_t trips;
-
-  std::stringstream ss;
-  ss<<inpstr;
-
-  io::CSVReader<7> in("trips.csv", ss);
-  in.read_header(io::ignore_extra_column, "trip_id","block_id","start_arrival_time","start_stop_id","end_arrival_time","end_stop_id","distance");
-
-  std::string      trip_id;
-  block_id_t::type block_id;
-  seconds::type    start_arrival_time;
-  stop_id_t::type  start_stop_id;
-  seconds::type    end_arrival_time;
-  stop_id_t::type  end_stop_id;
-  meters::type     distance;
-  while(in.read_row(trip_id,block_id,start_arrival_time,start_stop_id,end_arrival_time,end_stop_id,distance)){
-    trips.push_back(TripInfo{
-      trip_id,
-      block_id_t::make(block_id),
-      seconds::make(start_arrival_time),
-      stop_id_t::make(start_stop_id),
-      seconds::make(end_arrival_time),
-      stop_id_t::make(end_stop_id),
-      meters::make(distance)
-    });
-  }
-
-  return trips;
-}
-
-
-
-
-
 std::unordered_map<depot_id_t, int> count_buses(const trips_t &trips){
   //Tupe of Time, Depot, Count(-1 or 1)
   typedef std::tuple<double, depot_id_t, int8_t> DepotEvent;
-  
+
   //Load the priority queue
   std::priority_queue<DepotEvent, std::vector<DepotEvent>, std::greater<DepotEvent>> pq;
   for(const auto &t: trips){
@@ -335,7 +184,7 @@ class Model {
       const auto trip_energy = trip->distance * params.kwh_per_km;
       const auto energy_end_to_depot = nrg_to_depot(trip->end_stop_id);
 
-      // Do we have enough energy to do this trip and get to a depot?    
+      // Do we have enough energy to do this trip and get to a depot?
       if(energy_left<trip_energy+energy_end_to_depot){
         // No: That's a problem. Raise a flag. Do the trip and end negative.
         std::cerr<<"\tEnergy trap found at trip="<<trip->trip_id<<" block_id="<<trip->block_id<<std::endl;
@@ -390,9 +239,6 @@ class Model {
     return trips;
   }
 };
-
-
-
 
 
 

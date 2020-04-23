@@ -32,6 +32,4 @@ constexpr kilowatt_hours operator"" _kWh        ( long double x ) { return kilow
 constexpr kWh_per_km     operator"" _kWh_per_km ( long double x ) { return kWh_per_km::make(x); }
 constexpr dollars        operator"" _dollars    ( long double x ) { return dollars::make(x); }
 
-kilowatt_hours operator*(const meters &meters_in, const kWh_per_km &kwh_per_km){
-    return kilowatt_hours::make(meters_in.raw()/1000*kwh_per_km.raw());
-}
+kilowatt_hours operator*(const meters &meters_in, const kWh_per_km &kwh_per_km);
