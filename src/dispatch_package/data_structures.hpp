@@ -85,12 +85,12 @@ struct TripInfo {
   stop_id_t   end_stop_id;
   meters      distance;
 
-  seconds        bus_busy_start = seconds::invalid();        //Time at which the bus becomes busy on this trip
-  seconds        bus_busy_end   = seconds::invalid();        //Time at which the bus becomes unbusy on this trip
-  int32_t        bus_id         = -1;                        //Bus id (unique across all trips) of bus serving this trip
-  depot_id_t     start_depot_id = depot_id_t::invalid();     //ID of the depot from which the bus leaves to start this trip. -1 indicates no depot (starts from some previous trip)
-  depot_id_t     end_depot_id   = depot_id_t::invalid();     //ID of the depot to which the bus goes when it's done with this trip. -1 indicates no depot (continues on to another trip)
-  kilowatt_hours energy_left    = kilowatt_hours::invalid();
+  seconds        bus_busy_start;      //Time at which the bus becomes busy on this trip
+  seconds        bus_busy_end;        //Time at which the bus becomes unbusy on this trip
+  int32_t        bus_id = -1;         //Bus id (unique across all trips) of bus serving this trip
+  depot_id_t     start_depot_id;      //ID of the depot from which the bus leaves to start this trip. -1 indicates no depot (starts from some previous trip)
+  depot_id_t     end_depot_id;        //ID of the depot to which the bus goes when it's done with this trip. -1 indicates no depot (continues on to another trip)
+  kilowatt_hours energy_left;
 
   std::string repr(){
     return std::string("<dispatch.TripInfo ")

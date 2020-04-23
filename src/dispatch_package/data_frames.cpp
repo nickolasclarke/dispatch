@@ -58,7 +58,13 @@ trips_t csv_trips_to_internal(const std::string &inpstr){
       stop_id_t::make(start_stop_id),
       seconds::make(end_arrival_time),
       stop_id_t::make(end_stop_id),
-      meters::make(distance)
+      meters::make(distance),
+      seconds::invalid(),        //bus_busy_start
+      seconds::invalid(),        //bus_busy_end
+      -1,                        //bus_id
+      depot_id_t::invalid(),     //start_depot_id
+      depot_id_t::invalid(),     //end_depot_id
+      kilowatt_hours::invalid(), //energy_left
     });
   }
 
