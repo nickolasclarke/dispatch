@@ -10,7 +10,7 @@ class ModelInfo {
 
  public:
   Parameters params;
-  const trips_t trips_template;
+  const trips_t trips;
   const stops_t stops;
 
   ModelInfo(
@@ -18,7 +18,7 @@ class ModelInfo {
     const std::string &trips_csv,
     const std::string &stops_csv
   ) : params(params),
-      trips_template(load_and_sort_trips(trips_csv)),
+      trips(load_and_sort_trips(trips_csv)),
       stops(csv_stops_to_internal(stops_csv))
   {}
 

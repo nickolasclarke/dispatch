@@ -190,7 +190,7 @@ void run_block(
 ///                   this is passed by reference because it is incremented
 ///                   across all the blocks `run_block` is called on.
 trips_t run_model(const ModelInfo &model_info){
-  auto trips = model_info.trips_template;
+  auto trips = model_info.trips;
   auto start_of_block = trips.begin();
   int32_t next_bus_id = 1;
   for(auto trip=trips.begin();trip!=trips.end();trip++){
