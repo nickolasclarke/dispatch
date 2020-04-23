@@ -115,7 +115,7 @@ void run_block(
   };
 
   bool new_bus = true;
-  auto energy_left = params.battery_cap_kwh;
+  kilowatt_hours energy_left = params.battery_cap_kwh;
 
   for(auto trip=block_start;trip!=block_end;trip++){ // For each trip in block
     if(new_bus){
