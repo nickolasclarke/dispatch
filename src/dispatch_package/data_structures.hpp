@@ -9,9 +9,7 @@
 const auto dinf = std::numeric_limits<double>::infinity();
 const auto dnan = std::numeric_limits<double>::quiet_NaN();
 
-typedef int32_t depot_id_t;
 typedef std::string trip_id_t;
-typedef int32_t block_id_t;
 
 
 
