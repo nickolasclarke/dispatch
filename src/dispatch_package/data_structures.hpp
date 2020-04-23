@@ -46,6 +46,14 @@ struct StopInfo {
   depot_id_t depot_id;
   seconds    depot_time;
   meters     depot_distance;
+  std::string repr() const {
+    return std::string("<dispatch.StopInfo")
+      + "  stop_id="        + std::to_string(stop_id)
+      + ", depot_id="       + std::to_string(depot_id)
+      + ", depot_time="     + std::to_string(depot_time)
+      + ", depot_distance=" + std::to_string(depot_distance)
+      + ">";
+  }
 };
 
 

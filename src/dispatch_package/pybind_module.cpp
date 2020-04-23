@@ -53,10 +53,20 @@ PYBIND11_MODULE(dispatch, m) {
     .def_readwrite("dist_to_depot", &ClosestDepotInfo::dist_to_depot)
     .def("__repr__",                &ClosestDepotInfo::repr);
 
+  py::class_<StopInfo>(m, "StopInfo")
+    .def(py::init<>())
+    .def("__repr__", &StopInfo::repr)
+    .def_readwrite("stop_id",        &StopInfo::stop_id)
+    .def_readwrite("depot_id",       &StopInfo::depot_id)
+    .def_readwrite("depot_time",     &StopInfo::depot_time)
+    .def_readwrite("depot_distance", &StopInfo::depot_distance);
 
   py::class_<ModelInfo>(m, "ModelInfo")
     .def(py::init<const Parameters&, const std::string&, const std::string&>())
-    .def("update_params", &ModelInfo:: update_params);
+    .def("update_params", &ModelInfo:: update_params)
+    .def_readonly("params", &ModelInfo::params)
+    .def_readonly("trips",  &ModelInfo::trips)
+    .def_readonly("stops",  &ModelInfo::stops);
 
   m.def("GetClosestDepot", &GetClosestDepot, "TODO");
   m.def("count_buses", &count_buses, "TODO");
