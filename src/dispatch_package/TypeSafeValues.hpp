@@ -29,31 +29,36 @@ class TSV {
 
     bool is_valid()   const { return !std::isnan(m_val); }
     bool is_invalid() const { return  std::isnan(m_val); }
+
     void invalidate() { m_val = invalid_value; }
 
     value operator+(const value &o) const {
         assert(is_valid() && o.is_valid());
-        value temp; temp.m_val=m_val+o.m_val; return temp;
+        return value(m_val+o.m_val);
     }
     value operator-(const value &o) const {
         assert(is_valid() && o.is_valid());
-        value temp; temp.m_val=m_val-o.m_val; return temp;
+        return value(m_val-o.m_val);
     }
     value& operator+=(const value &o){
         assert(is_valid && o.is_valid());
-        m_val+=o.m_val; return *this;
+        m_val+=o.m_val;
+        return *this;
     }
     value& operator-=(const value &o){
         assert(is_valid && o.is_valid());
-        m_val-=o.m_val; return *this;
+        m_val-=o.m_val;
+        return *this;
     }
     value& operator++(){
         assert(is_valid());
-        m_val++; return *this;
+        m_val++;
+        return *this;
     }
     value& operator--(){
         assert(is_valid());
-        m_val--; return *this;
+        m_val--;
+        return *this;
     }
     value& operator-(){
         assert(is_valid());
