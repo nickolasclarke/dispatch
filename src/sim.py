@@ -125,18 +125,21 @@ def main(
   stops = GetNearestDepots(router, trips, stops, depots, search_radius_m=1000)
 
   params = dispatch.Parameters()
-  params.battery_cap_kwh         = 240.0 #u"kW*hr",
-  params.kwh_per_km              = 1.2/1000   #u"kW*hr/km", #TODO: Check units everywhere
-  params.charging_rate           = 150.0 #u"kW",
-  params.search_radius           = 1.0   #u"km",
-  params.zstops_frac_stopped_at  = 0.2
-  params.zstops_average_time     = 10    #u"s",
+  params.battery_cap_kwh       = 200     #kWh
+  params.kwh_per_km            = 1.2     #kWh_per_km
+  params.bus_cost              = 500_000 #dollars
+  params.battery_cost_per_kwh  = 100     #dollars
+  params.depot_charger_cost    = 50_000  #dollars
+  params.depot_charger_rate    = 125     #kW
+  params.nondepot_charger_cost = 600_000 #dollars
+  params.nondepot_charger_rate = 500     #kW
+  params.chargers_per_depot    = 1       #TODO: Bad default
 
   #Ensure that depots are near a node in the road network
   print("Testing to see if all depots are near nodes...")
   if not DepotsHaveNodes(router, depots, search_radius_m=1000):
     raise Exception("One or more of the depots don't have road network nodes! Quitting.")
-  
+
   data_pack = {
     "depots":     depots,     #List of depot locations
     "params":     params,     #Model parameters
@@ -146,13 +149,13 @@ def main(
   }
 
   print("Creating model...")
-  model = dispatch.Model(params, trips.to_csv(), stops.to_csv())
-  trips = model.run()
+  model = dispatch.ModelInfo(params, trips.to_csv(), stops.to_csv())
+  trips = dispatch.run_model(model)
   tripsdf = ConvertVectorOfStructsToDataFrame(trips)
   buses = dispatch.count_buses(trips)
   # code.interact(local=dict(globals(), **locals())) #TODO: Remove
   return tripsdf, buses
-  
+
 
 #TODO: Used for testing
 #python3 sim.py "../../data/parsed_minneapolis" "../../data/minneapolis-saint-paul_minnesota.osm.pbf" "../../data/depots_minneapolis.csv" "/z/out"
