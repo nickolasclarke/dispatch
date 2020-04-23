@@ -6,10 +6,10 @@ set(OSMIUM_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/submodules/libosmium/include")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/submodules/libosmium/cmake/")
 
-set(CMAKE_CXX_FLAGS_RelWithDebInfoAndAssert "-Wall -Wabi -Wextra -O2 -g" CACHE STRING
+set(CMAKE_CXX_FLAGS_RelWithDebInfoAndAssert "-Wall -Wabi -Wextra -O3 -g" CACHE STRING
  "Flags used by the C++ compiler during RelWithDebInfoAndAssert builds."
   FORCE)
-set(CMAKE_C_FLAGS_RelWithDebInfoAndAssert "-Wall -Wabi -Wextra -pedantic -O2 -g" CACHE STRING
+set(CMAKE_C_FLAGS_RelWithDebInfoAndAssert "-Wall -Wabi -Wextra -pedantic -O3 -g" CACHE STRING
   "Flags used by the C compiler during RelWithDebInfoAndAssert builds."
   FORCE)
 set(CMAKE_EXE_LINKER_FLAGS_RelWithDebInfoAndAssert
