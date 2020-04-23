@@ -70,8 +70,14 @@ class TSV {
 
     friend size_t std::hash<value>::operator ()(const value&) const;
 
-    bool operator==(const TSV &o){ return m_val==o.m_val; }
-    bool operator!=(const TSV &o){ return m_val==o.m_val; }
+    bool operator==(const TSV &o){
+        assert(is_valid() && o.is_valid());
+        return m_val==o.m_val;
+    }
+    bool operator!=(const TSV &o){
+        assert(is_valid() && o.is_valid());
+        return m_val!=o.m_val;
+    }
  private:
     constexpr explicit TSV(type val) : m_val(val) {}
     type m_val;
