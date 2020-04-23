@@ -174,6 +174,7 @@ void run_block(
       // YES: Do this trip and continue on to next iteration of the loop
       std::cerr<<"\tContinue the trip.\n";
       trip->energy_left = energy_left = energy_left - trip_energy;
+      trip->bus_busy_end = trip->end_arrival_time;
       new_bus = false;
     }
   }
