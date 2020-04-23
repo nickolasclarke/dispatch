@@ -140,14 +140,6 @@ def main(
   if not DepotsHaveNodes(router, depots, search_radius_m=1000):
     raise Exception("One or more of the depots don't have road network nodes! Quitting.")
 
-  data_pack = {
-    "depots":     depots,     #List of depot locations
-    "params":     params,     #Model parameters
-    "router":     router,     #Router object used to determine network distances between stops
-    "stop_times": stop_times,
-    "stops":      stops
-  }
-
   print("Creating model...")
   model = dispatch.ModelInfo(params, trips.to_csv(), stops.to_csv())
   trips = dispatch.run_model(model)
