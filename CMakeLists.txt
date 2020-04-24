@@ -31,15 +31,6 @@ set(CMAKE_BUILD_TYPE "${CMAKE_BUILD_TYPE}" CACHE STRING
   "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel RelWithDebInfoAndAssert."
   FORCE)
 
-
-
-
-if(MSVC)
-  add_compile_options(/W4 /WX)
-else()
-  add_compile_options(-Wall -Wextra -pedantic)
-endif()
-
 add_subdirectory(submodules/type_safe EXCLUDE_FROM_ALL)
 add_subdirectory(submodules)
 add_subdirectory(src)
