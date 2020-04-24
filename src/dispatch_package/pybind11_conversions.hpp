@@ -13,12 +13,12 @@
             PyObject *source = src.ptr();                                                     \
             PyObject *tmp = PyNumber_Float(source);                                           \
             if (!tmp) return false;                                                           \
-            value = XXX::make(PyFloat_AsDouble(tmp));                                         \
+            value = XXX(PyFloat_AsDouble(tmp));                                               \
             Py_DECREF(tmp);                                                                   \
             return !PyErr_Occurred();                                                         \
         }                                                                                     \
         static handle cast(XXX src, return_value_policy /* policy */, handle /* parent */) {  \
-            return PyFloat_FromDouble(src.raw());                                             \
+            return PyFloat_FromDouble(static_cast<XXX::type>(src));                           \
         }                                                                                     \
     };                                                                                        \
 
@@ -30,12 +30,12 @@
             PyObject *source = src.ptr();                                                     \
             PyObject *tmp = PyNumber_Long(source);                                            \
             if (!tmp) return false;                                                           \
-            value = XXX::make(PyLong_AsLong(tmp));                                            \
+            value = XXX(PyLong_AsLong(tmp));                                                  \
             Py_DECREF(tmp);                                                                   \
             return !PyErr_Occurred();                                                         \
         }                                                                                     \
         static handle cast(XXX src, return_value_policy /* policy */, handle /* parent */) {  \
-            return PyLong_FromLong(src.raw());                                                \
+            return PyLong_FromLong(static_cast<XXX::type>(src));                              \
         }                                                                                     \
     };                                                                                        \
 

@@ -73,6 +73,10 @@ class TSV {
         return out;
     }
 
+    std::string to_string() {
+        return std::to_string(m_val);
+    }
+
     friend size_t std::hash<value>::operator ()(const value&) const;
 
     bool operator==(const TSV &o){

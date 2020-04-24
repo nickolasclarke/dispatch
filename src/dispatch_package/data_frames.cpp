@@ -18,14 +18,14 @@ stops_t csv_stops_to_internal(const std::string &inpstr){
   seconds::type    depot_time;
   meters::type     depot_distance;
   while(in.read_row(stop_id_in, depot_id, depot_time, depot_distance)){
-    stop_id_t stop_id = stop_id_t::make(stop_id_in);
+    stop_id_t stop_id(stop_id_in);
     if(stops.count(stop_id)!=0)
       throw std::runtime_error("stop_id was in the table twice!");
     stops[stop_id] = StopInfo{
       stop_id,
-      depot_id_t::make(depot_id),
-      seconds::make(depot_time),
-      meters::make(depot_distance)
+      depot_id_t(depot_id),
+      seconds(depot_time),
+      meters(depot_distance)
     };
   }
 
@@ -53,12 +53,12 @@ trips_t csv_trips_to_internal(const std::string &inpstr){
   while(in.read_row(trip_id,block_id,start_arrival_time,start_stop_id,end_arrival_time,end_stop_id,distance)){
     trips.push_back(TripInfo{
       trip_id,
-      block_id_t::make(block_id),
-      seconds::make(start_arrival_time),
-      stop_id_t::make(start_stop_id),
-      seconds::make(end_arrival_time),
-      stop_id_t::make(end_stop_id),
-      meters::make(distance),
+      block_id_t(block_id),
+      seconds(start_arrival_time),
+      stop_id_t(start_stop_id),
+      seconds(end_arrival_time),
+      stop_id_t(end_stop_id),
+      meters(distance),
       seconds::invalid(),        //bus_busy_start
       seconds::invalid(),        //bus_busy_end
       -1,                        //bus_id

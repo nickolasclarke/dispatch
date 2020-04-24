@@ -141,11 +141,11 @@ def main(
     raise Exception("One or more of the depots don't have road network nodes! Quitting.")
 
   print("Creating model...")
-  model = dispatch.ModelInfo(params, trips.to_csv(), stops.to_csv())
-  trips = dispatch.run_model(model)
-  tripsdf = ConvertVectorOfStructsToDataFrame(trips)
-  buses = dispatch.count_buses(trips)
-  # code.interact(local=dict(globals(), **locals())) #TODO: Remove
+  model_info = dispatch.ModelInfo(params, trips.to_csv(), stops.to_csv())
+  trip_results = dispatch.run_model(model_info)
+  tripsdf = ConvertVectorOfStructsToDataFrame(trip_results)
+  buses = dispatch.count_buses(trip_results)
+  code.interact(local=dict(globals(), **locals())) #TODO: Remove
   return tripsdf, buses
 
 

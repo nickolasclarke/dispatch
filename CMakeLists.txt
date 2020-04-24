@@ -40,5 +40,6 @@ else()
   add_compile_options(-Wall -Wextra -pedantic)
 endif()
 
+add_subdirectory(submodules/type_safe EXCLUDE_FROM_ALL)
 add_subdirectory(submodules)
 add_subdirectory(src)

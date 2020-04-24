@@ -10,3 +10,6 @@
 [submodule "submodules/units"]
 	path = submodules/units
 	url = https://github.com/nholthaus/units.git
+[submodule "submodules/type_safe"]
+	path = submodules/type_safe
+	url = https://github.com/r-barnes/type_safe.git

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <sstream>
 #include <unordered_map>
 #include <vector>
 
@@ -25,17 +26,19 @@ struct Parameters {
   kilowatts      nondepot_charger_rate = 500.0_kW;
   int32_t        chargers_per_depot    = 1; //TODO: Bad default
   std::string repr() const {
-    return std::string("<dispatch.Parameters ")
-      + "battery_cap_kwh="         + std::to_string(battery_cap_kwh)
-      + ", kwh_per_km="            + std::to_string(kwh_per_km)
-      + ", bus_cost="              + std::to_string(bus_cost)
-      + ", battery_cost_per_kwh="  + std::to_string(battery_cost_per_kwh)
-      + ", depot_charger_cost="    + std::to_string(depot_charger_cost)
-      + ", depot_charger_rate="    + std::to_string(depot_charger_rate)
-      + ", nondepot_charger_cost=" + std::to_string(nondepot_charger_cost)
-      + ", nondepot_charger_rate=" + std::to_string(nondepot_charger_rate)
-      + ", chargers_per_depot="    + std::to_string(chargers_per_depot)
-      + ">";
+    std::ostringstream oss;
+    oss << "<dispatch.Parameters "
+      << "battery_cap_kwh="         << battery_cap_kwh
+      << ", kwh_per_km="            << kwh_per_km
+      << ", bus_cost="              << bus_cost
+      << ", battery_cost_per_kwh="  << battery_cost_per_kwh
+      << ", depot_charger_cost="    << depot_charger_cost
+      << ", depot_charger_rate="    << depot_charger_rate
+      << ", nondepot_charger_cost=" << nondepot_charger_cost
+      << ", nondepot_charger_rate=" << nondepot_charger_rate
+      << ", chargers_per_depot="    << chargers_per_depot
+      << ">";
+    return oss.str();
   }
 };
 
@@ -47,12 +50,14 @@ struct StopInfo {
   seconds    depot_time;
   meters     depot_distance;
   std::string repr() const {
-    return std::string("<dispatch.StopInfo")
-      + "  stop_id="        + std::to_string(stop_id)
-      + ", depot_id="       + std::to_string(depot_id)
-      + ", depot_time="     + std::to_string(depot_time)
-      + ", depot_distance=" + std::to_string(depot_distance)
-      + ">";
+    std::ostringstream oss;
+    oss << "<dispatch.StopInfo"
+      << "  stop_id="        << stop_id
+      << ", depot_id="       << depot_id
+      << ", depot_time="     << depot_time
+      << ", depot_distance=" << depot_distance
+      << ">";
+    return oss.str();
   }
 };
 
@@ -65,12 +70,14 @@ struct ClosestDepotInfo {
   std::vector<double>     time_to_depot;
   std::vector<double>     dist_to_depot;
   ClosestDepotInfo(const int N){
-    depot_id.resize(N, depot_id_t::invalid());
+    depot_id.resize(N);
     time_to_depot.resize(N, dnan);
     dist_to_depot.resize(N, dnan);
   }
   std::string repr() const {
-    return std::string("<dispatch.ClosestDepotInfo of length "+std::to_string(depot_id.size())+" with properties depot_id, time_to_depot, dist_to_depot>");
+    std::ostringstream oss;
+    oss << "<dispatch.ClosestDepotInfo of length " << depot_id.size() << " with properties depot_id, time_to_depot, dist_to_depot>";
+    return oss.str();
   }
 };
 
@@ -93,21 +100,23 @@ struct TripInfo {
   kilowatt_hours energy_left;
 
   std::string repr(){
-    return std::string("<dispatch.TripInfo ")
-      + "trip_id="            +trip_id                           +", "
-      + "block_id="           +std::to_string(block_id)          +", "
-      + "start_arrival_time=" +std::to_string(start_arrival_time)+", "
-      + "start_stop_id="      +std::to_string(start_stop_id)     +", "
-      + "end_arrival_time="   +std::to_string(end_arrival_time)  +", "
-      + "end_stop_id="        +std::to_string(end_stop_id)       +", "
-      + "distance="           +std::to_string(distance)          +", "
-      + "bus_busy_start="     +std::to_string(bus_busy_start)    +", "
-      + "bus_busy_end="       +std::to_string(bus_busy_end)      +", "
-      + "bus_id="             +std::to_string(bus_id)            +", "
-      + "start_depot_id="     +std::to_string(start_depot_id)    +", "
-      + "end_depot_id="       +std::to_string(end_depot_id)      +", "
-      + "energy_left="        +std::to_string(energy_left)
-      + ">";
+    std::ostringstream oss;
+    oss<<"<dispatch.TripInfo "
+      << "trip_id="              <<trip_id
+      << ", block_id="           <<block_id
+      << ", start_arrival_time=" <<start_arrival_time
+      << ", start_stop_id="      <<start_stop_id
+      << ", end_arrival_time="   <<end_arrival_time
+      << ", end_stop_id="        <<end_stop_id
+      << ", distance="           <<distance
+      << ", bus_busy_start="     <<bus_busy_start
+      << ", bus_busy_end="       <<bus_busy_end
+      << ", bus_id="             <<bus_id
+      << ", start_depot_id="     <<start_depot_id
+      << ", end_depot_id="       <<end_depot_id
+      << ", energy_left="        <<energy_left
+      << ">";
+      return oss.str();
   }
 };
 

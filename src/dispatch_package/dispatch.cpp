@@ -47,9 +47,9 @@ std::unordered_map<depot_id_t, int> count_buses(const trips_t &trips){
   //Load the priority queue
   std::priority_queue<DepotEvent, std::vector<DepotEvent>, std::greater<DepotEvent>> pq;
   for(const auto &t: trips){
-    if(t.start_depot_id!=-1)
+    if(t.start_depot_id.is_valid())
       pq.emplace(t.bus_busy_start, t.start_depot_id, 1); //Going out
-    if(t.end_depot_id!=-1)
+    if(t.end_depot_id.is_valid())
       pq.emplace(t.bus_busy_end,   t.end_depot_id,  -1);  //Coming in
   }
 
@@ -235,7 +235,7 @@ ClosestDepotInfo GetClosestDepot(
       );
       const auto current_best = closest_depot.time_to_depot[si];
       if(std::isnan(current_best) || time<current_best){
-        closest_depot.depot_id[si] = depot_id_t::make(di);
+        closest_depot.depot_id[si] = depot_id_t(di);
         closest_depot.time_to_depot[si] = time;
         closest_depot.dist_to_depot[si] = distance;
       }
