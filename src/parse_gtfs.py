@@ -12,7 +12,7 @@ All of the trips (from one end of a route to the other) that are made.
 Keys:
 * `trip_id`:              A unique identifier for the trip. Opaque.
 * `trip_headsign`:        Human-readable trip description. Only for debugging.
-* `block_id`:             Trips with the same block_id can, in theory, be 
+* `block_id`:             Trips with the same block_id can, in theory, be
                           conveniently served by the same bus.
 * `start_arrival_time'`:  When the bus needs to arrive at the start of the trip.
 * `start_departure_time`: When the bus depats the start to being the trip.
@@ -26,7 +26,7 @@ Keys:
 * `end_lng`:              Longitude of the end of the trip.
 * `distance`:             Length of the trip in meters.
 * `duration`:             Duration of the trip in seconds.
-* `wait_time`:            How long the bus is scheduled to spend waiting at 
+* `wait_time`:            How long the bus is scheduled to spend waiting at
                           stops during the trip.
 
 stops
@@ -94,18 +94,18 @@ route_types = list(itertools.chain.from_iterable([
   [3], # Standard Route Type code
 
   [700, 701, #Extended Bus codes
-  702, 703, 
-  704, 705, 
-  706, 707, 
-  708, 709, 
-  710, 711, 
-  712, 713, 
+  702, 703,
+  704, 705,
+  706, 707,
+  708, 709,
+  710, 711,
+  712, 713,
   714, 715, 716],
 
   [200, 201, #Extended Coach codes
-  202, 203, 
-  204, 205, 
-  206, 207, 
+  202, 203,
+  204, 205,
+  206, 207,
   208, 209],
 
   [800] #Extended Trollybus codes
@@ -134,14 +134,14 @@ def dedupe_adjacent(iterable):
 
 def wgs_to_aea(x,y):
   """Converts to a US Contiguous Albert Equal Area projection."""
-  # TODO: This fails on pyproj>2.0. 
+  # TODO: This fails on pyproj>2.0.
   return pyproj.transform(
     pyproj.Proj(init='epsg:4326'),    # source coordinate system
     pyproj.Proj(init='esri:102003'),  # destination coordinate system
     x,
     y
   )
-    
+
 
 
 def ChangeProjection(geom):
@@ -162,7 +162,7 @@ def MatchColumn(df, colname):
   """Turns start_x and end_x into x while ensuring they were the same"""
   if not f'start_{colname}' in df.columns:
     raise Exception(f'start_{colname} is not a column!')
-  if not f'end_{colname}' in df.columns: 
+  if not f'end_{colname}' in df.columns:
     raise Exception(f'end_{colname} is not a column!')
   if not (df[f'start_{colname}']==df[f'end_{colname}']).all():
     raise Exception("Could not match start and end columns!")
