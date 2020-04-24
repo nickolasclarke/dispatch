@@ -145,7 +145,7 @@ def main(
   trip_results = dispatch.run_model(model_info)
   tripsdf = ConvertVectorOfStructsToDataFrame(trip_results)
   buses = dispatch.count_buses(trip_results)
-  code.interact(local=dict(globals(), **locals())) #TODO: Remove
+  print("Total buses: {0}".format(sum([x for x in buses.values()])))
   return tripsdf, buses
 
 
@@ -168,3 +168,4 @@ print("Parsing OSM data into router...")
 router = dispatch.Router(args.osm_data)
 
 bus_assignments, bus_counts = main(args.parsed_gtfs_prefix, router, args.depots_filename, args.output_filename)
+print(f"bus_counts={bus_counts}")
