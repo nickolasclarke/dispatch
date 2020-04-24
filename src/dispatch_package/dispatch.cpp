@@ -89,6 +89,7 @@ void ModelInfo::update_params(const Parameters &new_params){
 
 void run_block(
   const ModelInfo &model_info,
+  const HasCharger &has_charger,
   trips_t::iterator block_start,
   trips_t::iterator block_end,
   int32_t &next_bus_id
@@ -190,7 +191,7 @@ void run_block(
 ///@param next_bus_id ID to assign to the next bus that's scheduled. Note that
 ///                   this is passed by reference because it is incremented
 ///                   across all the blocks `run_block` is called on.
-trips_t run_model(const ModelInfo &model_info){
+trips_t run_model(const ModelInfo &model_info, const HasCharger &has_charger){
   auto trips = model_info.trips;
   auto start_of_block = trips.begin();
   int32_t next_bus_id = 1;
@@ -198,13 +199,13 @@ trips_t run_model(const ModelInfo &model_info){
     //Have we found a new block?
     if(trip->block_id!=start_of_block->block_id){
       //If so, the trip is a valid end iterator for the previous block
-      run_block(model_info, start_of_block, trip, next_bus_id);
+      run_block(model_info, has_charger, start_of_block, trip, next_bus_id);
       //Current trip starts a new block
       start_of_block=trip;
     }
   }
   //Run the last block
-  run_block(model_info, start_of_block, trips.end(), next_bus_id);
+  run_block(model_info, has_charger, start_of_block, trips.end(), next_bus_id);
 
   return trips;
 }

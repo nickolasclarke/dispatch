@@ -125,3 +125,4 @@ struct TripInfo {
 
 typedef std::vector<TripInfo> trips_t;
 typedef std::unordered_map<stop_id_t, StopInfo> stops_t;
+typedef std::unordered_map<stop_id_t, bool> HasCharger;

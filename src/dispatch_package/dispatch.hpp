@@ -41,11 +41,4 @@ ClosestDepotInfo GetClosestDepot(
 
 std::unordered_map<depot_id_t, int> count_buses(const trips_t &trips);
 
-void run_block(
-  const ModelInfo &model_info,
-  trips_t::iterator block_start,
-  trips_t::iterator block_end,
-  int32_t &next_bus_id
-);
-
-trips_t run_model(const ModelInfo &model_info);
+trips_t run_model(const ModelInfo &model_info, const HasCharger &has_charger);

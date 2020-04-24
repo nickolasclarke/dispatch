@@ -142,7 +142,8 @@ def main(
 
   print("Creating model...")
   model_info = dispatch.ModelInfo(params, trips.to_csv(), stops.to_csv())
-  trip_results = dispatch.run_model(model_info)
+  has_chargers = {x:False for x in stops['stop_id']}
+  trip_results = dispatch.run_model(model_info, has_chargers)
   tripsdf = ConvertVectorOfStructsToDataFrame(trip_results)
   buses = dispatch.count_buses(trip_results)
   print("Total buses: {0}".format(sum([x for x in buses.values()])))
