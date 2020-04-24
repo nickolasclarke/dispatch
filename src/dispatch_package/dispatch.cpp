@@ -176,12 +176,12 @@ void run_block(
     const auto energy_next_end_to_depot = nrg_to_depot(next_trip->end_stop_id);
     if(energy_left<trip_energy + next_trip_energy + energy_next_end_to_depot){
       // NO: Do just this trip and then go to a depot.
-      std::cerr<<"\tEnd the trip.\n";
+      std::cerr<<"\tInsufficient energy, get a new bus.\n";
       end_trip(trip, energy_left - trip_energy - energy_end_to_depot);
       new_bus = true;
     } else {
       // YES: Do this trip and continue on to next iteration of the loop
-      std::cerr<<"\tContinue the trip.\n";
+      std::cerr<<"\tContinue with this bus.\n";
       trip->energy_left = energy_left = energy_left - trip_energy;
       trip->bus_busy_end = trip->end_arrival_time;
       new_bus = false;
