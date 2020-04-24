@@ -50,3 +50,4 @@ constexpr kWh_per_km     operator"" _kWh_per_km ( long double x ) { return kWh_p
 constexpr dollars        operator"" _dollars    ( long double x ) { return dollars(x); }
 
 kilowatt_hours operator*(const meters &meters_in, const kWh_per_km &kwh_per_km);
+kilowatt_hours operator*(const seconds &seconds_in, const kilowatts &kilowatts_in);

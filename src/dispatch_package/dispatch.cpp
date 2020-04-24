@@ -141,8 +141,16 @@ void run_block(
 
     // Note the next_trip
     const auto next_trip = trip+1;
-    const auto trip_energy = trip->distance * params.kwh_per_km;
+    auto trip_energy = trip->distance * params.kwh_per_km;
     const auto energy_end_to_depot = nrg_to_depot(trip->end_stop_id);
+
+    //If the charger at the end of this trip has a charger and there is a subsequent trip,
+    //then we'll use the charger
+    if(has_charger.at(trip->end_stop_id) && next_trip!=block_end){
+      const auto charge_amount = (trip->wait_time * params.nondepot_charger_rate);
+      std::cerr<<"\tCharging by "<<charge_amount<<" kWh\n"<<std::endl;
+      trip_energy -= charge_amount;
+    }
 
     // Do we have enough energy to do this trip and get to a depot?
     if(energy_left<trip_energy+energy_end_to_depot){
