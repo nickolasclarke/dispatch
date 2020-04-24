@@ -100,6 +100,11 @@ def main(
   params.nondepot_charger_cost = 600_000 #dollars
   params.nondepot_charger_rate = 500     #kW
   params.chargers_per_depot    = 1       #TODO: Bad default
+  params.generations           = [ 50,  50] #,1000]
+  params.mutation_rate         = [0.1,0.05] #,0.01]
+  params.keep_top              = [  5,   5] #,   5]
+  params.spawn_size            = [100, 100] #,  50]
+  params.restarts              = 1
 
   #Ensure that depots are near a node in the road network
   print("Testing to see if all depots are near nodes...")
@@ -108,11 +113,33 @@ def main(
 
   print("Creating model...")
   model_info = dispatch.ModelInfo(params, trips.to_csv(), stops.to_csv())
-  has_chargers = {x:False for x in stops['stop_id']}
-  trip_results = dispatch.run_model(model_info, has_chargers)
-  tripsdf = ConvertVectorOfStructsToDataFrame(trip_results)
-  buses = dispatch.count_buses(trip_results)
+
+  print("Cost with no chargers...")
+  no_charger_scenario = dispatch.ModelResults()
+  no_charger_scenario.has_charger = {x:False for x in stops['stop_id']}
+  dispatch.run_model(model_info, no_charger_scenario)
+  ncbuses = dispatch.count_buses(no_charger_scenario.trips)
+  print(f"NC ${no_charger_scenario.cost:,.2f}")
+  print("NC Total buses: {0}".format(sum([x for x in ncbuses.values()])))
+  print("NC Total chargers: {0}".format(sum([x for x in no_charger_scenario.has_charger.values()])))
+
+  print("Cost with all chargers...")
+  all_charger_scenario = dispatch.ModelResults()
+  all_charger_scenario.has_charger = {x:True for x in set(trips['start_stop_id'].tolist() + trips['end_stop_id'].tolist())}
+  dispatch.run_model(model_info, all_charger_scenario)
+  ncbuses = dispatch.count_buses(all_charger_scenario.trips)
+  print(f"NC Cost ${all_charger_scenario.cost:,.2f}")
+  print("NC Total buses: {0}".format(sum([x for x in ncbuses.values()])))
+  print("NC Total chargers: {0}".format(sum([x for x in all_charger_scenario.has_charger.values()])))
+
+  print("Optimizing with chargers...")
+  results = dispatch.optimize_model(model_info)
+  tripsdf = ConvertVectorOfStructsToDataFrame(results.trips)
+  buses = dispatch.count_buses(results.trips)
+  print(f"${results.cost:,.2f}")
   print("Total buses: {0}".format(sum([x for x in buses.values()])))
+  print("Total chargers: {0}".format(sum([x for x in results.has_charger.values()])))
+  code.interact(local=dict(globals(), **locals()))
   return tripsdf, buses
 
 

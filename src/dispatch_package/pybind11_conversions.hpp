@@ -47,6 +47,7 @@ namespace pybind11 { namespace detail {
     CastTSV(meters)
     CastTSV(dollars)
     CastTSV(kilowatts)
+    CastTSV(dollars_per_kwh)
     CastTSI(stop_id_t)
     CastTSI(block_id_t)
     CastTSI(depot_id_t)

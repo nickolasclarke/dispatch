@@ -3,6 +3,7 @@
 #include "pybind11_conversions.hpp"
 
 #include "dispatch.hpp"
+#include "optimizer.hpp"
 
 namespace py = pybind11;
 
@@ -45,7 +46,13 @@ PYBIND11_MODULE(dispatch, m) {
     .def_readwrite("depot_charger_rate",    &Parameters::depot_charger_rate)
     .def_readwrite("nondepot_charger_cost", &Parameters::nondepot_charger_cost)
     .def_readwrite("nondepot_charger_rate", &Parameters::nondepot_charger_rate)
-    .def_readwrite("chargers_per_depot",    &Parameters::chargers_per_depot);
+    .def_readwrite("chargers_per_depot",    &Parameters::chargers_per_depot)
+    .def_readwrite("generations",           &Parameters::generations)
+    .def_readwrite("mutation_rate",         &Parameters::mutation_rate)
+    .def_readwrite("keep_top",              &Parameters::keep_top)
+    .def_readwrite("spawn_size",            &Parameters::spawn_size)
+    .def_readwrite("restarts",              &Parameters::restarts);
+
 
   py::class_<ClosestDepotInfo>(m, "ClosestDepotInfo")
     .def(py::init<const int>())
@@ -69,7 +76,16 @@ PYBIND11_MODULE(dispatch, m) {
     .def_readonly("trips",  &ModelInfo::trips)
     .def_readonly("stops",  &ModelInfo::stops);
 
+  py::class_<ModelResults>(m, "ModelResults")
+    .def(py::init<>())
+    .def("__repr__", &ModelResults::repr)
+    .def_readwrite("trips",        &ModelResults::trips)
+    .def_readwrite("cost",         &ModelResults::cost)
+    .def_readwrite("has_charger",  &ModelResults::has_charger);
+
   m.def("GetClosestDepot", &GetClosestDepot, "TODO");
   m.def("count_buses", &count_buses, "TODO");
   m.def("run_model", &run_model, "TODO");
+  m.def("optimize_model", &optimize_model, "TODO");
+  m.def("calculate_costs", &calculate_costs, "TODO");
 }

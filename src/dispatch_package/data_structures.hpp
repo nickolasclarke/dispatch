@@ -1,5 +1,6 @@
 #pragma once
 
+#include <ostream>
 #include <sstream>
 #include <unordered_map>
 #include <vector>
@@ -16,15 +17,20 @@ typedef std::string trip_id_t;
 
 //TODO: Set all parameters to invalid values to ensure we are passed good ones
 struct Parameters {
-  kilowatt_hours battery_cap_kwh       = 200.0_kWh;
-  kWh_per_km     kwh_per_km            = 1.2_kWh_per_km;
-  dollars        bus_cost              = 500'000.0_dollars;
-  dollars        battery_cost_per_kwh  = 100.0_dollars;
-  dollars        depot_charger_cost    = 50'000.0_dollars;
-  kilowatts      depot_charger_rate    = 125.0_kW;
-  dollars        nondepot_charger_cost = 600'000.0_dollars;
-  kilowatts      nondepot_charger_rate = 500.0_kW;
-  int32_t        chargers_per_depot    = 1; //TODO: Bad default
+  kilowatt_hours  battery_cap_kwh       = 200.0_kWh;
+  kWh_per_km      kwh_per_km            = 1.2_kWh_per_km;
+  dollars         bus_cost              = 500'000.0_dollars;
+  dollars_per_kwh battery_cost_per_kwh  = dollars_per_kwh(100.0);
+  dollars         depot_charger_cost    = 50'000.0_dollars;
+  kilowatts       depot_charger_rate    = 125.0_kW;
+  dollars         nondepot_charger_cost = 600'000.0_dollars;
+  kilowatts       nondepot_charger_rate = 500.0_kW;
+  int32_t         chargers_per_depot    = 1; //TODO: Bad default
+  std::vector<int>    generations   = {{100, 100,1000}};
+  std::vector<double> mutation_rate = {{0.1,0.05,0.01}};
+  std::vector<int>    keep_top      = {{  5,   5,   5}};
+  std::vector<int>    spawn_size    = {{ 50,  50, 100}};
+  int                 restarts      = 1;
   std::string repr() const {
     std::ostringstream oss;
     oss << "<dispatch.Parameters "
@@ -37,6 +43,11 @@ struct Parameters {
       << ", nondepot_charger_cost=" << nondepot_charger_cost
       << ", nondepot_charger_rate=" << nondepot_charger_rate
       << ", chargers_per_depot="    << chargers_per_depot
+      << ", generations=[vec]"
+      << ", mutation_rate=[vec]"
+      << ", keep_top=[vec]"
+      << ", spawn_size=[vec]"
+      << ", restarts="              << restarts
       << ">";
     return oss.str();
   }

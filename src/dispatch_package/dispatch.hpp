@@ -1,3 +1,5 @@
+#pragma once
+
 #include <algorithm>
 
 #include "data_frames.hpp"
@@ -25,6 +27,13 @@ class ModelInfo {
   void update_params(const Parameters &new_params);
 };
 
+struct ModelResults {
+  trips_t trips;
+  HasCharger has_charger;
+  dollars cost;
+  std::string repr() const;
+};
+
 
 
 //Returns a vector of DepotID, Travel time (s), Travel distane (m)
@@ -41,4 +50,6 @@ ClosestDepotInfo GetClosestDepot(
 
 std::unordered_map<depot_id_t, int> count_buses(const trips_t &trips);
 
-trips_t run_model(const ModelInfo &model_info, const HasCharger &has_charger);
+void run_model(const ModelInfo &model_info, ModelResults &results);
+
+void calculate_costs(const ModelInfo &model_info, ModelResults &results);
