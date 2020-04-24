@@ -105,6 +105,7 @@ def main(
   params.keep_top              = [  5,   5] #,   5]
   params.spawn_size            = [100, 100] #,  50]
   params.restarts              = 1
+  params.seed                  = 0 #Initialize differently each time
 
   #Ensure that depots are near a node in the road network
   print("Testing to see if all depots are near nodes...")
@@ -162,4 +163,3 @@ print("Parsing OSM data into router...")
 router = dispatch.Router(args.osm_data)
 
 bus_assignments, bus_counts = main(args.parsed_gtfs_prefix, router, args.depots_filename, args.output_filename)
-print(f"bus_counts={bus_counts}")

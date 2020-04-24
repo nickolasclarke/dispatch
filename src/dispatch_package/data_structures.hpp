@@ -31,6 +31,7 @@ struct Parameters {
   std::vector<int>    keep_top      = {{  5,   5,   5}};
   std::vector<int>    spawn_size    = {{ 50,  50, 100}};
   int                 restarts      = 1;
+  uint32_t            seed          = 0;     //Initialize using random device
   std::string repr() const {
     std::ostringstream oss;
     oss << "<dispatch.Parameters "
@@ -48,6 +49,7 @@ struct Parameters {
       << ", keep_top=[vec]"
       << ", spawn_size=[vec]"
       << ", restarts="              << restarts
+      << ", seed="                  << seed
       << ">";
     return oss.str();
   }

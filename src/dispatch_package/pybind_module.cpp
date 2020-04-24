@@ -51,7 +51,8 @@ PYBIND11_MODULE(dispatch, m) {
     .def_readwrite("mutation_rate",         &Parameters::mutation_rate)
     .def_readwrite("keep_top",              &Parameters::keep_top)
     .def_readwrite("spawn_size",            &Parameters::spawn_size)
-    .def_readwrite("restarts",              &Parameters::restarts);
+    .def_readwrite("restarts",              &Parameters::restarts)
+    .def_readwrite("seed",                  &Parameters::seed);
 
 
   py::class_<ClosestDepotInfo>(m, "ClosestDepotInfo")

@@ -7,6 +7,18 @@
 
 typedef std::mt19937 our_random_engine;
 
+void seed_rand(our_random_engine &eng, const uint32_t seed){
+  if(seed==0){
+    std::uint_least32_t seed_data[std::mt19937::state_size];
+    std::random_device r;
+    std::generate_n(seed_data, std::mt19937::state_size, std::ref(r));
+    std::seed_seq q(std::begin(seed_data), std::end(seed_data));
+    eng.seed(q);
+  } else {
+    eng.seed(seed);
+  }
+}
+
 double r_uniform(our_random_engine &eng, double from, double thru){
   std::uniform_real_distribution<double> distribution(from,thru);
   return distribution(eng);
@@ -96,6 +108,8 @@ ModelResults optimization_restart_run(
 
 ModelResults optimize_model(const ModelInfo &model_info){
   our_random_engine eng;
+
+  seed_rand(eng, model_info.params.seed);
 
   results_vec results;
 
