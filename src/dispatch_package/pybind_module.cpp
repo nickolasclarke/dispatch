@@ -26,6 +26,7 @@ PYBIND11_MODULE(dispatch, m) {
     .def_readwrite("end_arrival_time",   &TripInfo::end_arrival_time)
     .def_readwrite("end_stop_id",        &TripInfo::end_stop_id)
     .def_readwrite("distance",           &TripInfo::distance)
+    .def_readwrite("wait_time",          &TripInfo::wait_time)
     .def_readwrite("bus_busy_start",     &TripInfo::bus_busy_start)
     .def_readwrite("bus_busy_end",       &TripInfo::bus_busy_end)
     .def_readwrite("bus_id",             &TripInfo::bus_id)

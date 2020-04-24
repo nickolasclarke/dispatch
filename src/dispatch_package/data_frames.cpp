@@ -40,8 +40,8 @@ trips_t csv_trips_to_internal(const std::string &inpstr){
   std::stringstream ss;
   ss<<inpstr;
 
-  io::CSVReader<7> in("trips.csv", ss);
-  in.read_header(io::ignore_extra_column, "trip_id","block_id","start_arrival_time","start_stop_id","end_arrival_time","end_stop_id","distance");
+  io::CSVReader<8> in("trips.csv", ss);
+  in.read_header(io::ignore_extra_column, "trip_id","block_id","start_arrival_time","start_stop_id","end_arrival_time","end_stop_id","distance","wait_time");
 
   std::string      trip_id;
   block_id_t::type block_id;
@@ -50,7 +50,8 @@ trips_t csv_trips_to_internal(const std::string &inpstr){
   seconds::type    end_arrival_time;
   stop_id_t::type  end_stop_id;
   meters::type     distance;
-  while(in.read_row(trip_id,block_id,start_arrival_time,start_stop_id,end_arrival_time,end_stop_id,distance)){
+  seconds::type    wait_time;
+  while(in.read_row(trip_id,block_id,start_arrival_time,start_stop_id,end_arrival_time,end_stop_id,distance,wait_time)){
     trips.push_back(TripInfo{
       trip_id,
       block_id_t(block_id),
@@ -59,6 +60,7 @@ trips_t csv_trips_to_internal(const std::string &inpstr){
       seconds(end_arrival_time),
       stop_id_t(end_stop_id),
       meters(distance),
+      seconds(wait_time),
       seconds::invalid(),        //bus_busy_start
       seconds::invalid(),        //bus_busy_end
       -1,                        //bus_id

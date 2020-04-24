@@ -91,6 +91,7 @@ struct TripInfo {
   seconds     end_arrival_time;
   stop_id_t   end_stop_id;
   meters      distance;
+  seconds     wait_time;              //Wait time until the start of the next trip
 
   seconds        bus_busy_start;      //Time at which the bus becomes busy on this trip
   seconds        bus_busy_end;        //Time at which the bus becomes unbusy on this trip
@@ -109,6 +110,7 @@ struct TripInfo {
       << ", end_arrival_time="   <<end_arrival_time
       << ", end_stop_id="        <<end_stop_id
       << ", distance="           <<distance
+      << ", wait_time="          <<wait_time
       << ", bus_busy_start="     <<bus_busy_start
       << ", bus_busy_end="       <<bus_busy_end
       << ", bus_id="             <<bus_id

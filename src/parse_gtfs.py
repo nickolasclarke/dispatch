@@ -274,11 +274,11 @@ def GenerateTrips(gtfs, date, service_ids):
 
   #Get wait time between trips
   trips = trips.sort_values(["block_id", "start_arrival_time"])
-  next_trip = trips.shift(-1).copy()
+  next_trip = trips.shift(-1)
   trips['wait_time'] = next_trip['start_departure_time']-trips['end_arrival_time']
 
-  has_next_trip = (trips['block_id']!=next_trip['block_id']).index
-  trips.loc[has_next_trip, 'wait_time'] = np.nan
+  no_next_trip = (trips['block_id']!=next_trip['block_id'])
+  trips.loc[no_next_trip, 'wait_time'] = 0
 
   return trips
 
