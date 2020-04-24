@@ -110,8 +110,9 @@ void run_block(
   };
 
   const auto end_trip = [&](trips_t::iterator trip, kilowatt_hours energy_left) -> void {
+    const seconds charge_time = std::min(params.battery_cap_kwh, params.battery_cap_kwh - energy_left)/params.depot_charger_rate;
     trip->energy_left = energy_left;
-    trip->bus_busy_end = trip->end_arrival_time + time_to_depot(trip->end_stop_id);
+    trip->bus_busy_end = trip->end_arrival_time + time_to_depot(trip->end_stop_id) + charge_time;
     trip->end_depot_id = depot_id(trip->end_stop_id);
   };
 

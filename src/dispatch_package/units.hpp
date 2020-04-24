@@ -51,3 +51,4 @@ constexpr dollars        operator"" _dollars    ( long double x ) { return dolla
 
 kilowatt_hours operator*(const meters &meters_in, const kWh_per_km &kwh_per_km);
 kilowatt_hours operator*(const seconds &seconds_in, const kilowatts &kilowatts_in);
+seconds        operator/(const kilowatt_hours &kilowatt_hours_in, const kilowatts &kilowatts_in);
