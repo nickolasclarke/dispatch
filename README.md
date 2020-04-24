@@ -113,20 +113,20 @@ follows subtly different paths which are still labeled as the same route. We
 parse the GTFS data into the following format:
 
  * `trip_id`:              A unique identifier for the trip. Taken from GTFS
- * `trip_headsign`:        The bus's public LED readout for the trip. Taken from 
+ * `trip_headsign`:        The bus's public LED readout for the trip. Taken from
                            GTFS. Used for debugging.
- * `block_id`:             A unique identifier indicating a string of sequential 
+ * `block_id`:             A unique identifier indicating a string of sequential
                            trips which are nominally served by the same bus.
- * `start_arrival_time`:   Time at which the bus is supposed to be present at 
+ * `start_arrival_time`:   Time at which the bus is supposed to be present at
                            the starting stop of the trip.
- * `start_departure_time`: Time at which the bus is supposed to depart the 
+ * `start_departure_time`: Time at which the bus is supposed to depart the
                            starting stop of the trip. May be the same as
                            `start_arrival_time`.
  * `start_stop_id`:        Unique identifier for the stop at which the trip begins.
  * `start_lat`:            Latitude of the stop idenicated by `start_stop_id`.
  * `start_lng`:            Longitude of the stop idenicated by `start_stop_id`.
  * `end_arrival_time`:     Time at which the bus is supposed to end its trip.
- * `end_departure_time`:   Time at which the bus is supposed to depart its last 
+ * `end_departure_time`:   Time at which the bus is supposed to depart its last
                            stop. May be the same as `end_arrival_time`. Kind of
                            unclear what this is about. TODO
  * `end_stop_id`:          Unique identifier for the stop at which the trip ends.

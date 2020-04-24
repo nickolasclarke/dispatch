@@ -47,9 +47,9 @@ std::unordered_map<depot_id_t, int> count_buses(const trips_t &trips){
   //Load the priority queue
   std::priority_queue<DepotEvent, std::vector<DepotEvent>, std::greater<DepotEvent>> pq;
   for(const auto &t: trips){
-    if(t.start_depot_id!=-1)
+    if(t.start_depot_id.is_valid())
       pq.emplace(t.bus_busy_start, t.start_depot_id, 1); //Going out
-    if(t.end_depot_id!=-1)
+    if(t.end_depot_id.is_valid())
       pq.emplace(t.bus_busy_end,   t.end_depot_id,  -1);  //Coming in
   }
 
@@ -89,6 +89,7 @@ void ModelInfo::update_params(const Parameters &new_params){
 
 void run_block(
   const ModelInfo &model_info,
+  const HasCharger &has_charger,
   trips_t::iterator block_start,
   trips_t::iterator block_end,
   int32_t &next_bus_id
@@ -109,13 +110,14 @@ void run_block(
   };
 
   const auto end_trip = [&](trips_t::iterator trip, kilowatt_hours energy_left) -> void {
+    const seconds charge_time = std::min(params.battery_cap_kwh, params.battery_cap_kwh - energy_left)/params.depot_charger_rate;
     trip->energy_left = energy_left;
-    trip->bus_busy_end = trip->end_arrival_time + time_to_depot(trip->end_stop_id);
+    trip->bus_busy_end = trip->end_arrival_time + time_to_depot(trip->end_stop_id) + charge_time;
     trip->end_depot_id = depot_id(trip->end_stop_id);
   };
 
   bool new_bus = true;
-  auto energy_left = params.battery_cap_kwh;
+  kilowatt_hours energy_left = params.battery_cap_kwh;
 
   for(auto trip=block_start;trip!=block_end;trip++){ // For each trip in block
     if(new_bus){
@@ -140,8 +142,16 @@ void run_block(
 
     // Note the next_trip
     const auto next_trip = trip+1;
-    const auto trip_energy = trip->distance * params.kwh_per_km;
+    auto trip_energy = trip->distance * params.kwh_per_km;
     const auto energy_end_to_depot = nrg_to_depot(trip->end_stop_id);
+
+    //If the charger at the end of this trip has a charger and there is a subsequent trip,
+    //then we'll use the charger
+    if(has_charger.at(trip->end_stop_id) && next_trip!=block_end){
+      const auto charge_amount = (trip->wait_time * params.nondepot_charger_rate);
+      std::cerr<<"\tCharging by "<<charge_amount<<" kWh\n"<<std::endl;
+      trip_energy -= charge_amount;
+    }
 
     // Do we have enough energy to do this trip and get to a depot?
     if(energy_left<trip_energy+energy_end_to_depot){
@@ -167,13 +177,14 @@ void run_block(
     const auto energy_next_end_to_depot = nrg_to_depot(next_trip->end_stop_id);
     if(energy_left<trip_energy + next_trip_energy + energy_next_end_to_depot){
       // NO: Do just this trip and then go to a depot.
-      std::cerr<<"\tEnd the trip.\n";
+      std::cerr<<"\tInsufficient energy, get a new bus.\n";
       end_trip(trip, energy_left - trip_energy - energy_end_to_depot);
       new_bus = true;
     } else {
       // YES: Do this trip and continue on to next iteration of the loop
-      std::cerr<<"\tContinue the trip.\n";
+      std::cerr<<"\tContinue with this bus.\n";
       trip->energy_left = energy_left = energy_left - trip_energy;
+      trip->bus_busy_end = trip->end_arrival_time;
       new_bus = false;
     }
   }
@@ -189,21 +200,21 @@ void run_block(
 ///@param next_bus_id ID to assign to the next bus that's scheduled. Note that
 ///                   this is passed by reference because it is incremented
 ///                   across all the blocks `run_block` is called on.
-trips_t run_model(const ModelInfo &model_info){
-  auto trips = model_info.trips_template;
+trips_t run_model(const ModelInfo &model_info, const HasCharger &has_charger){
+  auto trips = model_info.trips;
   auto start_of_block = trips.begin();
   int32_t next_bus_id = 1;
   for(auto trip=trips.begin();trip!=trips.end();trip++){
     //Have we found a new block?
     if(trip->block_id!=start_of_block->block_id){
       //If so, the trip is a valid end iterator for the previous block
-      run_block(model_info, start_of_block, trip, next_bus_id);
+      run_block(model_info, has_charger, start_of_block, trip, next_bus_id);
       //Current trip starts a new block
       start_of_block=trip;
     }
   }
   //Run the last block
-  run_block(model_info, start_of_block, trips.end(), next_bus_id);
+  run_block(model_info, has_charger, start_of_block, trips.end(), next_bus_id);
 
   return trips;
 }
@@ -234,7 +245,7 @@ ClosestDepotInfo GetClosestDepot(
       );
       const auto current_best = closest_depot.time_to_depot[si];
       if(std::isnan(current_best) || time<current_best){
-        closest_depot.depot_id[si] = depot_id_t::make(di);
+        closest_depot.depot_id[si] = depot_id_t(di);
         closest_depot.time_to_depot[si] = time;
         closest_depot.dist_to_depot[si] = distance;
       }

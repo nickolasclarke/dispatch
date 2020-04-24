@@ -4,6 +4,6 @@ find_package(pybind11 REQUIRED)
 find_package(OpenMP)
 
 pybind11_add_module(dispatch dispatch.cpp data_frames.cpp units.cpp pybind_module.cpp)
-target_link_libraries(dispatch PRIVATE rkrouter OpenMP::OpenMP_CXX)
+target_link_libraries(dispatch PRIVATE rkrouter OpenMP::OpenMP_CXX type_safe)
 target_compile_features(dispatch PUBLIC cxx_std_17)
 install(TARGETS dispatch LIBRARY DESTINATION bin)
