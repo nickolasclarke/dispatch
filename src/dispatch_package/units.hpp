@@ -31,6 +31,8 @@ struct KilowattHoursPerKilometerTag{};
 
 struct DollarsTag{};
 
+struct dollars_per_kwh_tag{};
+
 using kilometers     = TSV<KilometersTag, double>;
 using meters         = TSV<MetersTag, double>;
 using seconds        = TSV<SecondsTag, double>;
@@ -39,6 +41,7 @@ using kilowatts      = TSV<Kilowatts, double>;
 using kilowatt_hours = TSV<KilowattHoursTag, double>;
 using kWh_per_km     = TSV<KilowattHoursPerKilometerTag, double>;
 using dollars        = TSV<DollarsTag, double>;
+using dollars_per_kwh = TSV<dollars_per_kwh_tag, double>;
 
 constexpr kilometers     operator"" _km         ( long double x ) { return kilometers(x); }
 constexpr meters         operator"" _m          ( long double x ) { return meters(x); }
@@ -52,3 +55,5 @@ constexpr dollars        operator"" _dollars    ( long double x ) { return dolla
 kilowatt_hours operator*(const meters &meters_in, const kWh_per_km &kwh_per_km);
 kilowatt_hours operator*(const seconds &seconds_in, const kilowatts &kilowatts_in);
 seconds        operator/(const kilowatt_hours &kilowatt_hours_in, const kilowatts &kilowatts_in);
+dollars        operator*(const int &int_value, const dollars &dollars_in);
+dollars        operator*(const kilowatt_hours &kilowatt_hours_in, const dollars_per_kwh &dollars_per_kwh_in);

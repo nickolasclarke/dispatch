@@ -18,3 +18,14 @@ seconds operator/(const kilowatt_hours &kilowatt_hours_in, const kilowatts &kilo
     const auto hours         = dkilowatt_hrs/dkilowatts;
     return seconds(3600*hours);
 }
+
+dollars operator*(const int &int_value, const dollars &dollars_in){
+    const auto ddollars = static_cast<dollars::type>(dollars_in);
+    return dollars(int_value*ddollars);
+}
+
+dollars operator*(const kilowatt_hours &kilowatt_hours_in, const dollars_per_kwh &dollars_per_kwh_in){
+    const auto dkilowatt_hours = static_cast<kilowatt_hours::type>(kilowatt_hours_in);
+    const auto ddollars_per_kwh = static_cast<dollars_per_kwh::type>(dollars_per_kwh_in);
+    return dollars(dkilowatt_hours*ddollars_per_kwh);
+}
