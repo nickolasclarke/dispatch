@@ -143,7 +143,7 @@ def main(
   print(f"${results.cost:,.2f}")
   print("Total buses: {0}".format(sum([x for x in buses.values()])))
   print("Total chargers: {0}".format(sum([x for x in results.has_charger.values()])))
-  code.interact(local=dict(globals(), **locals()))
+  # code.interact(local=dict(globals(), **locals())) #TODO
   return tripsdf, buses
 
 
