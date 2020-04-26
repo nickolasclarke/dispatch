@@ -72,12 +72,15 @@ def DepotsHaveNodes(router, depots, search_radius_m=1000):
 
 
 
-def main(
+def simulate(
   input_prefix,
-  router,
+  osm_data,
   depots_filename,
   output_filename
 ):
+  print("Parsing OSM data into router...")
+  router = dispatch.Router(osm_data)
+
   trips      = pd.read_csv(f"{input_prefix}_trips.csv")
   stops      = pd.read_csv(f"{input_prefix}_stops.csv")
   stop_times = pd.read_csv(f"{input_prefix}_stop_times.csv")
@@ -150,19 +153,23 @@ def main(
 #TODO: Used for testing
 #python3 sim.py "../../data/parsed_minneapolis" "../../data/minneapolis-saint-paul_minnesota.osm.pbf" "../../data/depots_minneapolis.csv" "/z/out"
 
-parser = argparse.ArgumentParser(description='Run the model TODO.')
-parser.add_argument('parsed_gtfs_prefix', type=str, help='TODO')
-parser.add_argument('osm_data',           type=str, help='TODO')
-parser.add_argument('depots_filename',    type=str, help='TODO')
-parser.add_argument('output_filename',    type=str, help='TODO')
-args = parser.parse_args()
+def main():
+  parser = argparse.ArgumentParser(description='Run the model TODO.')
+  parser.add_argument('parsed_gtfs_prefix', type=str, help='TODO')
+  parser.add_argument('osm_data',           type=str, help='TODO')
+  parser.add_argument('depots_filename',    type=str, help='TODO')
+  parser.add_argument('output_filename',    type=str, help='TODO')
+  args = parser.parse_args()
 
-print(f"parsed_gtfs_prefix: {args.parsed_gtfs_prefix}")
-print(f"osm_data:           {args.osm_data}")
-print(f"depots_filename:    {args.depots_filename}")
-print(f"output_filename:    {args.output_filename}")
+  print(f"parsed_gtfs_prefix: {args.parsed_gtfs_prefix}")
+  print(f"osm_data:           {args.osm_data}")
+  print(f"depots_filename:    {args.depots_filename}")
+  print(f"output_filename:    {args.output_filename}")
 
-print("Parsing OSM data into router...")
-router = dispatch.Router(args.osm_data)
 
-bus_assignments, bus_counts = main(args.parsed_gtfs_prefix, router, args.depots_filename, args.output_filename)
+  bus_assignments, bus_counts = simulate(args.parsed_gtfs_prefix, args.osm_data, args.depots_filename, args.output_filename)
+
+
+
+if __name__ == '__main__':
+  main()
