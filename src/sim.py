@@ -122,33 +122,34 @@ def main(
   dispatch.run_model(model_info, no_charger_scenario)
   tripsdf = ConvertVectorOfStructsToDataFrame(no_charger_scenario.trips)
   ncbuses = dispatch.count_buses(no_charger_scenario.trips)
-  print(f"NC ${no_charger_scenario.cost:,.2f}")
-  print("NC Total buses: {0}".format(sum([x for x in ncbuses.values()])))
-  print("NC Total chargers: {0}".format(sum([x for x in no_charger_scenario.has_charger.values()])))
+  print(f"No Chargers Cost ${no_charger_scenario.cost:,.2f}")
+  print("No Chargers Total buses: {0}".format(sum([x for x in ncbuses.values()])))
+  print("No Chargers Total chargers: {0}".format(sum([x for x in no_charger_scenario.has_charger.values()])))
 
   print("Cost with all chargers...")
   all_charger_scenario = dispatch.ModelResults()
   all_charger_scenario.has_charger = {x:True for x in set(trips['start_stop_id'].tolist() + trips['end_stop_id'].tolist())}
   dispatch.run_model(model_info, all_charger_scenario)
   tripsdf = ConvertVectorOfStructsToDataFrame(all_charger_scenario.trips)
-  ncbuses = dispatch.count_buses(all_charger_scenario.trips)
-  print(f"NC Cost ${all_charger_scenario.cost:,.2f}")
-  print("NC Total buses: {0}".format(sum([x for x in ncbuses.values()])))
-  print("NC Total chargers: {0}".format(sum([x for x in all_charger_scenario.has_charger.values()])))
+  acbuses = dispatch.count_buses(all_charger_scenario.trips)
+  print(f"All Chargers Cost ${all_charger_scenario.cost:,.2f}")
+  print("All Chargers Total buses: {0}".format(sum([x for x in acbuses.values()])))
+  print("All Chargers Total chargers: {0}".format(sum([x for x in all_charger_scenario.has_charger.values()])))
 
   print("Optimizing with chargers...")
   results = dispatch.optimize_model(model_info)
   tripsdf = ConvertVectorOfStructsToDataFrame(results.trips)
   buses = dispatch.count_buses(results.trips)
-  print(f"${results.cost:,.2f}")
-  print("Total buses: {0}".format(sum([x for x in buses.values()])))
-  print("Total chargers: {0}".format(sum([x for x in results.has_charger.values()])))
+  print(f"Optimized Cost ${results.cost:,.2f}")
+  print("Optimized buses: {0}".format(sum([x for x in buses.values()])))
+  print("Optimized chargers: {0}".format(sum([x for x in results.has_charger.values()])))
   # code.interact(local=dict(globals(), **locals())) #TODO
   return tripsdf, buses
 
 
 #TODO: Used for testing
 #python3 sim.py "../../data/parsed_minneapolis" "../../data/minneapolis-saint-paul_minnesota.osm.pbf" "../../data/depots_minneapolis.csv" "/z/out"
+#python3 sim.py "../../data/parsed_utahtransportationauthority59" "../../data/osm_utahtransportationauthority59.osm.pbf" "../../data/depots_utahtransportationauthority59.csv" "/z/out"
 
 parser = argparse.ArgumentParser(description='Run the model TODO.')
 parser.add_argument('parsed_gtfs_prefix', type=str, help='TODO')
