@@ -71,8 +71,53 @@ def DepotsHaveNodes(router, depots, search_radius_m=1000):
   return good
 
 
+def generateParams(
+  #TODO enforce types
+  # simulator parameters
+  battery_cap_kwh      = 200,     #kWh
+  street_charger_rate  = 500,     #kW
+  #street_charger_density = 0.25   #ratio TODO implement support
+  depot_charger_rate   = 125,     #kW
+  bus_cost             = 500_000, #dollars
+  battery_cost_per_kwh = 100,     #dollars
+  depot_charger_cost   = 50_000,  #dollars
+  street_charger_cost  = 600_000, #dollars
+  kwh_per_km           = 1.2,     #kWh_per_km
+  chargers_per_depot   = 1,       #TODO: Bad default
+  # optimizer parameters
+  generation           = [ 50,  50], #,1000]
+  mutation_rate        = [0.1,0.05], #,0.01]
+  keep_top             = [  5,   5], #,   5]
+  spawn_size           = [100, 100], #,  50]
+  restarts             = 1,
+  seed                 = 0, #Initialize differently each time
+):
+  """
+  Generate a Dispatch parameters object
+
+  """
+  params = dispatch.Parameters()
+  params.battery_cap_kwh      = battery_cap_kwh
+  params.street_charger_rate  = street_charger_rate
+  params.depot_charger_rate   = depot_charger_rate
+  #street_charger_density     = street_charger_density #TODO see above
+  params.bus_cost             = bus_cost
+  params.battery_cost_per_kwh = battery_cost_per_kwh
+  params.depot_charger_cost   = depot_charger_cost
+  params.street_charger_cost  = street_charger_cost
+  params.kwh_per_km           = kwh_per_km
+  params.chargers_per_depot   = chargers_per_depot
+  params.generations          = generation
+  params.mutation_rate        = mutation_rate
+  params.keep_top             = keep_top
+  params.spawn_size           = spawn_size
+  params.restarts             = restarts
+  params.seed                 = seed
+  return params
+
 
 def main(
+  scenario_details,
   input_prefix,
   router,
   depots_filename,
@@ -83,30 +128,15 @@ def main(
   stop_times = pd.read_csv(f"{input_prefix}_stop_times.csv")
   depots     = pd.read_csv(depots_filename)
 
+  #TODO best practice for proper *kwargs handling?
+  scenario = scenario_details.split(' ')
+  params = generateParams(*scenario)
   #TODO: Apply units to tables?
 
   #Modify the stops table to include depot_id, depot_distance, and depot_time
   #columns
   print("Getting nearest depots...")
   stops = GetNearestDepots(router, trips, stops, depots, search_radius_m=1000)
-
-  params = dispatch.Parameters()
-  params.battery_cap_kwh       = 200     #kWh
-  params.kwh_per_km            = 1.2     #kWh_per_km
-  params.bus_cost              = 500_000 #dollars
-  params.battery_cost_per_kwh  = 100     #dollars
-  params.depot_charger_cost    = 50_000  #dollars
-  params.depot_charger_rate    = 125     #kW
-  params.nondepot_charger_cost = 600_000 #dollars
-  params.nondepot_charger_rate = 500     #kW
-  params.chargers_per_depot    = 1       #TODO: Bad default
-
-  params.generations           = [ 50,  50] #,1000]
-  params.mutation_rate         = [0.1,0.05] #,0.01]
-  params.keep_top              = [  5,   5] #,   5]
-  params.spawn_size            = [100, 100] #,  50]
-  params.restarts              = 1
-  params.seed                  = 0 #Initialize differently each time
 
   #Ensure that depots are near a node in the road network
   print("Testing to see if all depots are near nodes...")
@@ -151,12 +181,14 @@ def main(
 #python3 sim.py "../../data/parsed_minneapolis" "../../data/minneapolis-saint-paul_minnesota.osm.pbf" "../../data/depots_minneapolis.csv" "/z/out"
 
 parser = argparse.ArgumentParser(description='Run the model TODO.')
+parser.add_argument('scenario_details',   type=str, help='TODO')
 parser.add_argument('parsed_gtfs_prefix', type=str, help='TODO')
 parser.add_argument('osm_data',           type=str, help='TODO')
 parser.add_argument('depots_filename',    type=str, help='TODO')
 parser.add_argument('output_filename',    type=str, help='TODO')
 args = parser.parse_args()
 
+print(f"scenario_details:   {args.scenario_details}")
 print(f"parsed_gtfs_prefix: {args.parsed_gtfs_prefix}")
 print(f"osm_data:           {args.osm_data}")
 print(f"depots_filename:    {args.depots_filename}")
@@ -165,4 +197,9 @@ print(f"output_filename:    {args.output_filename}")
 print("Parsing OSM data into router...")
 router = dispatch.Router(args.osm_data)
 
-bus_assignments, bus_counts = main(args.parsed_gtfs_prefix, router, args.depots_filename, args.output_filename)
+bus_assignments, bus_counts = main(args.scenario_details,
+                                   args.parsed_gtfs_prefix,
+                                   router,
+                                   args.depots_filename,
+                                   args.output_filename
+                                   )
