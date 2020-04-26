@@ -149,6 +149,7 @@ def main(
 
 #TODO: Used for testing
 #python3 sim.py "../../data/parsed_minneapolis" "../../data/minneapolis-saint-paul_minnesota.osm.pbf" "../../data/depots_minneapolis.csv" "/z/out"
+#python3 sim.py "../../data/parsed_vegas" "../../data/osm_rtcsouthernnevada47.osm.pbf" "../../data/depots_vegas.csv" "/z/out"
 
 parser = argparse.ArgumentParser(description='Run the model TODO.')
 parser.add_argument('parsed_gtfs_prefix', type=str, help='TODO')
