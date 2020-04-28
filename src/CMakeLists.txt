@@ -17,7 +17,7 @@ set_property(TARGET rkrouter PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 
 set(SCRIPT_FILES
-  find_chargers.py optimize_bus_distribution.py parse_gtfs.py pull_gtfs.py sim.py
+  find_chargers.py optimize_bus_distribution.py parse_gtfs.py pull_gtfs.py sim.py scenarios.py
 )
 
 foreach(pyfile ${SCRIPT_FILES})
