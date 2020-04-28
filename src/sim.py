@@ -113,6 +113,15 @@ def simulate(input_prefix,
   print("Parsing OSM data into router...")
   router = dispatch.Router(osm_data)
 
+def simulate(
+  input_prefix,
+  osm_data,
+  depots_filename,
+  output_filename
+):
+  print("Parsing OSM data into router...")
+  router = dispatch.Router(osm_data)
+
   trips      = pd.read_csv(f"{input_prefix}_trips.csv")
   stops      = pd.read_csv(f"{input_prefix}_stops.csv")
   stop_times = pd.read_csv(f"{input_prefix}_stop_times.csv")
