@@ -27,7 +27,7 @@ def main():
   parser.add_argument('osm_data',           type=str, help='TODO')
   parser.add_argument('depots_filename',    type=str, help='TODO')
   parser.add_argument('output_filename',    type=str, help='TODO')
-  parser.add_argument('-b','--battery-cap_kwh',      nargs=3,type=int,help='TODO')
+  parser.add_argument('-b','--battery-cap-kwh',      nargs=3,type=int,help='TODO')
   parser.add_argument('-c','--nondepot-charger-rate',nargs=3,type=int,help='TODO')
   #TODO add when supported by sim.py
   #parser.add_argument('-d','--charger-density',  nargs=3,type=int,help='TODO')
@@ -60,17 +60,19 @@ def main():
     print(bus_assignments_df.head(), depot_counts)
     bus_assignments_df.to_csv(
       f'{args.output_filename}_{scen[0]}kwh_{scen[1]}kw.csv')
-
-
+    
+    print(depot_counts)
+    depot_counts = {f'depot_{k}': v for k, v in depot_counts.items()}
     depot_res_name = f'{args.output_filename}_depot_counts.csv'
+
     with open(depot_res_name, 'w', newline='') as csvfile:
-      fieldnames = ['depot_id','bus_counts']
+      fieldnames = list(depot_counts.keys())
       writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
       writer.writeheader()
       for key, val in depot_counts.items():
-        writer.writerow([key, val])
+        writer.writerow({key: val})
 
-  return
+  return bus_assignments_df, depot_counts
 
 if __name__ == '__main__':
   main()
