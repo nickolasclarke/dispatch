@@ -66,7 +66,7 @@ def DepotsHaveNodes(router, depots, search_radius_m=1000):
       router.getNearestNode(x.lat, x.lng, search_radius_m)
     except Exception as e:
       print(e)
-      print(f"Depot {x.name} ({x.lat},{x.lng} is not near a road network node!")
+      print(f"Depot {x.name} ({x.lat},{x.lng}) is not near a road network node!")
       good = False
   return good
 
