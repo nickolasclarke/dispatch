@@ -81,13 +81,13 @@ def generateParams(**kwargs):
   # simulator parameters
   params = dispatch.Parameters()
   params.battery_cap_kwh       = kwargs.get('battery_cap_kwh',      200)        #kWh
-  params.nondepot_charger_rate = kwargs.get('nondepot_charger_rate',  500)      #kW
+  params.nondepot_charger_rate = kwargs.get('nondepot_charger_rate',500)      #kW
 # params.nondepot_charger_den  = kwargs.get(street_charger_den, 0.25)           #ratio TODO implement support   
   params.depot_charger_rate    = kwargs.get('depot_charger_rate',   125)        #kW
   params.bus_cost              = kwargs.get('bus_cost',             500_000)    #dollars
   params.battery_cost_per_kwh  = kwargs.get('battery_cost_per_kwh', 100)        #dollars
   params.depot_charger_cost    = kwargs.get('depot_charger_cost',   50_000)     #dollars
-  params.nondepot_charger_cost = kwargs.get('nondepot_charger_cost',  600_000)  #dollars
+  params.nondepot_charger_cost = kwargs.get('nondepot_charger_cost',600_000)  #dollars
   params.kwh_per_km            = kwargs.get('kwh_per_km',           1.2)        #kWh_per_km
   params.chargers_per_depot    = kwargs.get('chargers_per_depot',   1)          #TODO: Bad default
   # optimizer parameters
