@@ -2,6 +2,7 @@
 
 import argparse
 import collections
+import yaml
 import code #TODO
 
 import numpy as np
@@ -71,45 +72,62 @@ def DepotsHaveNodes(router, depots, search_radius_m=1000):
   return good
 
 
+def generateParams(**kwargs):
+  """
+  Generate a Dispatch parameters object
 
-def simulate(
-  input_prefix,
-  osm_data,
-  depots_filename,
-  output_filename
-):
+  """
+  #TODO enforce types
+  # simulator parameters
+  params = dispatch.Parameters()
+  params.battery_cap_kwh       = kwargs.get('battery_cap_kwh',      200)        #kWh
+  params.nondepot_charger_rate = kwargs.get('nondepot_charger_rate',500)      #kW
+# params.nondepot_charger_den  = kwargs.get(street_charger_den, 0.25)           #ratio TODO implement support   
+  params.depot_charger_rate    = kwargs.get('depot_charger_rate',   125)        #kW
+  params.bus_cost              = kwargs.get('bus_cost',             500_000)    #dollars
+  params.battery_cost_per_kwh  = kwargs.get('battery_cost_per_kwh', 100)        #dollars
+  params.depot_charger_cost    = kwargs.get('depot_charger_cost',   50_000)     #dollars
+  params.nondepot_charger_cost = kwargs.get('nondepot_charger_cost',600_000)  #dollars
+  params.kwh_per_km            = kwargs.get('kwh_per_km',           1.2)        #kWh_per_km
+  params.chargers_per_depot    = kwargs.get('chargers_per_depot',   1)          #TODO: Bad default
+  # optimizer parameters
+  params.generations           = kwargs.get('generations',          [ 50,  50]) #,1000]
+  params.mutation_rate         = kwargs.get('mutation_rate',        [0.1,0.05]) #,0.01]
+  params.keep_top              = kwargs.get('keep_top',             [  5,   5]) #,   5]
+  params.spawn_size            = kwargs.get('spawn_size',           [100, 100]) #,  50]
+  params.restarts              = kwargs.get('restarts',             1)
+  params.seed                  = kwargs.get('seed',                 0) #Initialize differently each time
+  return params
+
+def simulate(input_prefix,
+             osm_data,
+             depots_filename,
+             parameters=None
+            ):
+  """ TODO Performs an optimized simulation
+      parameters, dict of simulation and optimizer parameters to be used, 
+  """
+
   print("Parsing OSM data into router...")
   router = dispatch.Router(osm_data)
+
 
   trips      = pd.read_csv(f"{input_prefix}_trips.csv")
   stops      = pd.read_csv(f"{input_prefix}_stops.csv")
   stop_times = pd.read_csv(f"{input_prefix}_stop_times.csv")
   depots     = pd.read_csv(depots_filename)
 
+  #TODO error handling for malformed dict, maybe should be in generateParams()?
+  params = generateParams(**parameters)
+
+  #TODO prettify output
+  print(f'Scenario Parameters: {params}')
   #TODO: Apply units to tables?
 
   #Modify the stops table to include depot_id, depot_distance, and depot_time
   #columns
   print("Getting nearest depots...")
   stops = GetNearestDepots(router, trips, stops, depots, search_radius_m=1000)
-
-  params = dispatch.Parameters()
-  params.battery_cap_kwh       = 200     #kWh
-  params.kwh_per_km            = 1.2     #kWh_per_km
-  params.bus_cost              = 500_000 #dollars
-  params.battery_cost_per_kwh  = 100     #dollars
-  params.depot_charger_cost    = 50_000  #dollars
-  params.depot_charger_rate    = 125     #kW
-  params.nondepot_charger_cost = 600_000 #dollars
-  params.nondepot_charger_rate = 500     #kW
-  params.chargers_per_depot    = 1       #TODO: Bad default
-
-  params.generations           = [ 50,  50] #,1000]
-  params.mutation_rate         = [0.1,0.05] #,0.01]
-  params.keep_top              = [  5,   5] #,   5]
-  params.spawn_size            = [100, 100] #,  50]
-  params.restarts              = 1
-  params.seed                  = 0 #Initialize differently each time
 
   #Ensure that depots are near a node in the road network
   print("Testing to see if all depots are near nodes...")
@@ -125,29 +143,47 @@ def simulate(
   dispatch.run_model(model_info, no_charger_scenario)
   tripsdf = ConvertVectorOfStructsToDataFrame(no_charger_scenario.trips)
   ncbuses = dispatch.count_buses(no_charger_scenario.trips)
+  nccost = no_charger_scenario.cost
+  nc_tot_buses = sum([x for x in ncbuses.values()])
+  nc_tot_chargers = sum([x for x in no_charger_scenario.has_charger.values()])
   print(f"No Chargers Cost ${no_charger_scenario.cost:,.2f}")
-  print("No Chargers Total buses: {0}".format(sum([x for x in ncbuses.values()])))
-  print("No Chargers Total chargers: {0}".format(sum([x for x in no_charger_scenario.has_charger.values()])))
-
+  print(f"No Chargers Total buses: {nc_tot_buses}")
+  print(f"No Chargers Total chargers: {nc_tot_chargers}")
+  
   print("Cost with all chargers...")
   all_charger_scenario = dispatch.ModelResults()
   all_charger_scenario.has_charger = {x:True for x in set(trips['start_stop_id'].tolist() + trips['end_stop_id'].tolist())}
   dispatch.run_model(model_info, all_charger_scenario)
   tripsdf = ConvertVectorOfStructsToDataFrame(all_charger_scenario.trips)
   acbuses = dispatch.count_buses(all_charger_scenario.trips)
-  print(f"All Chargers Cost ${all_charger_scenario.cost:,.2f}")
-  print("All Chargers Total buses: {0}".format(sum([x for x in acbuses.values()])))
-  print("All Chargers Total chargers: {0}".format(sum([x for x in all_charger_scenario.has_charger.values()])))
+  accost = all_charger_scenario.cost
+  ac_tot_buses = sum([x for x in acbuses.values()])
+  ac_tot_chargers = sum([x for x in all_charger_scenario.has_charger.values()])
+  print(f"No Chargers Cost ${all_charger_scenario.cost:,.2f}")
+  print(f"No Chargers Total buses: {ac_tot_buses}")
+  print(f"No Chargers Total chargers: {ac_tot_chargers}")
 
   print("Optimizing with chargers...")
   results = dispatch.optimize_model(model_info)
   tripsdf = ConvertVectorOfStructsToDataFrame(results.trips)
-  buses = dispatch.count_buses(results.trips)
+  optibuses = dispatch.count_buses(results.trips)
+  opti_tot_buses = sum([x for x in optibuses.values()])
+  opti_tot_chargers = sum([x for x in results.has_charger.values()])
+  cost = results.cost
   print(f"Optimized Cost ${results.cost:,.2f}")
-  print("Optimized buses: {0}".format(sum([x for x in buses.values()])))
-  print("Optimized chargers: {0}".format(sum([x for x in results.has_charger.values()])))
+  print(f"Optimized buses: {opti_tot_buses}")
+  print(f"Optimized chargers: {opti_tot_chargers}")
+  
+  full_results = {'opti_trips':tripsdf,
+                  'opti_buses':opti_tot_buses,'opti_chargers':opti_tot_chargers,
+                  'opti_cost':cost,'opti_depot_counts':optibuses,
+                  'nc_buses':nc_tot_buses,'nc_chargers':nc_tot_chargers,
+                  'nc_cost':nccost,'nc_depot_counts':ncbuses,
+                  'ac_buses':ac_tot_buses,'ac_chargers':ac_tot_chargers,
+                  'ac_cost':accost,'ac_depot_counts':acbuses,
+                  }
   # code.interact(local=dict(globals(), **locals())) #TODO
-  return tripsdf, buses
+  return full_results
 
 
 #TODO: Used for testing
@@ -160,18 +196,25 @@ def main():
   parser.add_argument('parsed_gtfs_prefix', type=str, help='TODO')
   parser.add_argument('osm_data',           type=str, help='TODO')
   parser.add_argument('depots_filename',    type=str, help='TODO')
-  parser.add_argument('output_filename',    type=str, help='TODO')
+  parser.add_argument('--sim-parameters',   type=str, help='TODO') # a yaml config file
   args = parser.parse_args()
 
   print(f"parsed_gtfs_prefix: {args.parsed_gtfs_prefix}")
   print(f"osm_data:           {args.osm_data}")
   print(f"depots_filename:    {args.depots_filename}")
-  print(f"output_filename:    {args.output_filename}")
+  print(f"sim_parameters:     {args.sim_parameters}")
 
+  # sim_parameters assumed to be a yaml config file of k:v pairs mapping to the 
+  # potential inputs to generateParams()
+  params = None
+  if args.sim_parameters is not None:
+    with open(args.sim_parameters,'r') as f:
+      params = yaml.full_load(f)
 
-  bus_assignments, bus_counts = simulate(args.parsed_gtfs_prefix, args.osm_data, args.depots_filename, args.output_filename)
-
-
-
+  bus_assignments, bus_counts, cost = simulate(args.parsed_gtfs_prefix, 
+                                          args.osm_data,
+                                          args.depots_filename,
+                                          parameters=params
+                                        )
 if __name__ == '__main__':
   main()
