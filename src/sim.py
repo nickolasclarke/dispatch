@@ -118,7 +118,11 @@ def simulate(input_prefix,
   depots     = pd.read_csv(depots_filename)
 
   #TODO error handling for malformed dict, maybe should be in generateParams()?
-  params = generateParams(**parameters)
+  if parameters is None:
+    parameters = {}
+    params = generateParams(**parameters)
+  else:
+    params = generateParams(**parameters)
 
   #TODO prettify output
   print(f'Scenario Parameters: {params}')

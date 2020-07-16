@@ -13,3 +13,4 @@ src/includes_block
 
 #Virtual environment directory
 env/
+out/

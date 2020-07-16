@@ -156,7 +156,7 @@ def main(parsed_gtfs_prefix,osm_data,depots_filename,output_dir,battery_cap_kwh,
                           'nc_cost':results['nc_cost'],
                           'ac_buses':results['ac_buses'],
                           'ac_chargers':results['ac_chargers'],
-                          'ac_costs':results['ac_cost']
+                          'ac_cost':results['ac_cost']
                          }
     #create output dir if needed, and write to file
     if not os.path.exists(output_dir):
@@ -176,9 +176,9 @@ def main(parsed_gtfs_prefix,osm_data,depots_filename,output_dir,battery_cap_kwh,
   scen_costs.to_csv(f'{output_dir}/scenarios_results.csv')
 
 if __name__ == '__main__':
-  main('../../data/parsed_actransit121',
-       '../../data/osm_actransit121.osm.pbf',
+  main('../../data/parsed_utahtransportationauthority59',
+       '../../data/osm_utahtransportationauthority59.osm.pbf',
        '../../data/depots_actransit.csv',
-       '../../out/test',
-       [220,440,200],
-       [100,300,200])
+       '../../tmp',
+       [220,661,200],
+       [100,501,200])
